@@ -96,7 +96,7 @@ $('qrFile').addEventListener('change', async event => {
 function chooseTab(scan) { stopCamera(); $('scanView').hidden = !scan; $('scanTab').setAttribute('aria-pressed', String(scan)); $('manualTab').setAttribute('aria-pressed', String(!scan)); }
 $('scanTab').addEventListener('click', () => chooseTab(true)); $('manualTab').addEventListener('click', () => chooseTab(false));
 document.querySelectorAll('[data-amount]').forEach(button => button.addEventListener('click', () => $('amount').value = button.dataset.amount));
-function prepareAudio() { try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); audioContext.resume().catch(() => {}); } catch (_) {} }
+function prepareAudio() { try { if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)(); audioContext.resume().catch(() => {}); } catch (_) {} }
 function announce(cents) {
   if (!$('soundEnabled').checked) { $('soundStatus').textContent = 'Sound muted. The simulated receipt is still shown.'; return; }
   prepareAudio(); let played = false;

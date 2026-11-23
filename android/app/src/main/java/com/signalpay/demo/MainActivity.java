@@ -169,6 +169,7 @@ public class MainActivity extends Activity {
         if (pendingCamera != null) pendingCamera.deny();
         if (fileResult != null) fileResult.onReceiveValue(null);
         if (speech != null) { speech.stop(); speech.shutdown(); }
+        if (webView.getParent() instanceof android.view.ViewGroup) ((android.view.ViewGroup) webView.getParent()).removeView(webView);
         webView.destroy(); super.onDestroy();
     }
 }
