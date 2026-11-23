@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Try SignalPay: a QR payment concept with simulated payments, SMS previews and soundbox audio. No real money moves.">
+  <meta name="theme-color" content="#24215a"><title>SignalPay · Interactive demo</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml"><link rel="stylesheet" href="./styles.css">
+  <script src="./jsQR.js" defer></script><script src="./qrcode.js" defer></script>
+  <script src="./core.js" defer></script><script src="./app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to demo</a>
+<aside class="sidebar">
+  <a class="brand" href="./"><span class="brand-icon">s<span>)))</span></span>SignalPay<span class="brand-dot">.</span></a>
+  <p class="nav-label">YOUR WORKSPACE</p>
+  <nav aria-label="Main"><a class="nav-item active" href="#main"><span aria-hidden="true">▦</span> Overview</a><a class="nav-item" href="#payment"><span aria-hidden="true">▣</span> Scan & pay</a><a class="nav-item" href="#activity"><span aria-hidden="true">↔</span> Activity</a><a class="nav-item" href="#merchant"><span aria-hidden="true">◉</span> Merchant demo</a></nav>
+  <div class="sidebar-bottom"><div class="concept-icon">✧</div><strong>A small signal.<br>A smoother checkout.</strong><p>Explore the idea with demo money.</p><span class="pill">Prototype · v1.0</span></div>
+</aside>
+<div class="workspace">
+  <header class="topbar"><span>Workspace <span class="slash">/</span> <strong>Overview</strong></span><div class="profile"><span class="demo-dot"></span> Demo workspace <span class="avatar">SP</span></div></header>
+  <main id="main">
+    <div class="intro"><div><p class="eyebrow">PAYMENTS, WITH A CLEAR SIGNAL</p><h1>Your everyday payments.<br><span>A little more effortless.</span></h1><p>Scan a code. Try a payment. Hear the confirmation.</p></div><button class="button secondary" id="reset">Reset demo</button></div>
+    <div class="demo-banner"><span class="info-icon" aria-hidden="true">i</span><p><strong>You're in a simulation.</strong> No real money moves, no SMS is sent, and no bank or account identity is verified. Use sample data only.</p><span class="pill">DEMO ONLY</span></div>
+    <section class="stats" aria-label="Demo wallet summary">
+      <article class="balance-card"><div class="card-top"><span>Demo wallet balance</span><span aria-hidden="true">◈</span></div><p class="balance" id="balance">PKR 25,000.00</p><div class="balance-bottom"><span>Sample wallet · No bank linked</span><span>PKR</span></div></article>
+      <article class="stat-card"><span class="stat-icon purple" aria-hidden="true">↗</span><p>Simulated payments</p><strong id="paymentCount">0</strong><small>This browser's demo session</small></article>
+      <article class="stat-card"><span class="stat-icon green" aria-hidden="true">◉</span><p>Merchant demo receipts</p><strong id="receivedTotal">PKR 0.00</strong><small>Fictional sales, ready to try</small></article>
+    </section>
+    <div class="primary-grid">
+      <section class="panel payment-panel" id="payment"><div class="section-title"><div><p class="eyebrow">GIVE IT A TRY</p><h2>Scan. Review. Simulate.</h2></div><span class="icon-badge" aria-hidden="true">▣</span></div>
+        <div class="tabs" role="group" aria-label="Choose payment method"><button id="scanTab" aria-pressed="true">QR scanner</button><button id="manualTab" aria-pressed="false">Sample recipient</button></div>
+        <div id="scanView"><div class="scanner" id="scanner"><video id="video" playsinline muted hidden aria-label="Live QR camera preview"></video><div id="scanPlaceholder"><div class="scan-frame" aria-hidden="true"><svg viewBox="0 0 80 80"><path d="M10 28V10h18M52 10h18v18M70 52v18H52M28 70H10V52"/><path class="thin" d="M24 24h10v10H24zM46 24h10v10H46zM24 46h10v10H24zM46 46h5v5h5v5H46z"/><path class="scan-line" d="M5 40h70"/></svg></div><strong>A clear code. A simple checkout.</strong><p>Scan a SignalPay sample QR to begin.</p></div><button id="stopCamera" class="camera-stop" hidden>Stop camera</button></div>
+          <p id="scanStatus" class="status" role="status">Camera stays off until you start it. QR images are processed on your device.</p><div class="scan-actions"><button class="button primary" id="startCamera">Start camera</button><button class="button secondary" id="sampleScan">Scan sample QR</button><label class="upload button quiet">Upload QR image<input type="file" id="qrFile" accept="image/png,image/jpeg,image/webp" aria-label="Upload QR image"></label></div>
+        </div>
+        <form id="paymentForm"><label for="recipient">Sample recipient</label><select id="recipient"><option value="chai">Chai Corner · Demo merchant</option><option value="books">Paper & Co. · Demo merchant</option><option value="friend">Demo Friend · Sample wallet</option></select><div id="recipientInfo" class="recipient-info">Fictional recipient · Identity not verified</div><label for="amount">Amount <span>PKR</span></label><div class="amount-input"><span>Rs</span><input id="amount" type="number" min="1" max="100000" step="0.01" value="250" required inputmode="decimal"></div><div class="quick-amounts" aria-label="Suggested amounts"><button type="button" data-amount="250">Rs 250</button><button type="button" data-amount="500">Rs 500</button><button type="button" data-amount="1000">Rs 1,000</button></div><button class="button primary pay-button" type="submit">Review demo payment</button><p class="fine-print">A simulation using your demo wallet balance.</p></form>
+      </section>
+      <div class="right-stack">
+        <section class="panel merchant-panel" id="merchant"><div class="section-title"><div><p class="eyebrow">THE OTHER SIDE OF CHECKOUT</p><h2>Meet your demo merchant.</h2></div><span class="pill soft">SAMPLE</span></div><div class="merchant-details"><div class="merchant-avatar">CC</div><div><strong>Chai Corner</strong><p>Fictional merchant · Karachi concept</p></div></div><div class="qr-row"><div class="qr-box" id="merchantQR" aria-label="Sample SignalPay QR for Chai Corner"></div><div><strong>One code. One clear signal.</strong><p>This QR only works inside this demo.</p><a id="downloadQR" class="text-link" download="signalpay-demo-qr.svg">Download sample QR</a></div></div><button class="button secondary full" id="receive">Simulate incoming sale · Rs 500</button><p class="fine-print">Adds a fictional merchant receipt, SMS preview and audio alert.</p></section>
+        <section class="panel soundbox-panel"><div class="soundbox-illustration" aria-hidden="true"><div class="speaker"><div class="speaker-light"></div><div class="speaker-mesh"></div><b>SignalPay</b></div><div class="sound-waves"><i></i><i></i><i></i><i></i><i></i></div></div><div class="soundbox-copy"><p class="eyebrow">LESS CHECKING. MORE CERTAINTY.</p><h2>A sound you can count on.</h2><p>Preview the soundbox's simulated payment announcement.</p><div class="sound-controls"><label><input type="checkbox" id="soundEnabled" checked> Sound on</label><button id="testSound" class="text-link">Test sound</button></div><p id="soundStatus" class="status" role="status">Audio plays on this device only.</p></div></section>
+        <section class="panel sms-panel"><div class="section-title"><h2>SMS preview</h2><span class="pill soft">NOT SENT</span></div><div class="sms-bubble" id="sms" role="status">Your simulated payment message will appear here. No phone number needed.</div><small>On-screen preview only · No SMS service connected</small></section>
+      </div>
+    </div>
+    <section class="panel activity-panel" id="activity"><div class="section-title"><div><p class="eyebrow">EVERY SIGNAL, IN ONE PLACE</p><h2>Demo activity</h2></div><span class="pill soft">Local to this browser</span></div><div class="table-wrap"><table><thead><tr><th>Recipient / merchant</th><th>Type</th><th>Amount</th><th>Status</th><th>Time</th></tr></thead><tbody id="activityRows"><tr><td colspan="5" class="empty-state">Your first demo payment starts a story. Try scanning the sample QR.</td></tr></tbody></table></div></section>
+    <footer><span class="footer-brand">SignalPay<span>.</span></span><p>A payment concept, made tangible. Demo only.</p><span>No banks connected. No identities verified.</span></footer>
+  </main>
+</div>
+<dialog id="reviewDialog" aria-labelledby="reviewTitle"><div class="dialog-content"><span class="pill soft">DEMO ONLY</span><h2 id="reviewTitle">Review your simulation</h2><p>Recipient</p><strong id="reviewRecipient"></strong><p class="fine-print">Fictional sample · Identity not verified</p><div class="review-amount" id="reviewAmount"></div><p>Your demo balance will decrease. A merchant receipt, SMS preview and soundbox alert will be simulated for merchant payments. No actual money or messages are sent.</p><div class="dialog-actions"><button class="button secondary" id="cancelPayment">Cancel</button><button class="button primary" id="confirmPayment">Confirm simulation</button></div></div></dialog>
+<dialog id="resetDialog" aria-labelledby="resetTitle"><div class="dialog-content"><h2 id="resetTitle">Start a fresh demo?</h2><p>This clears this browser's fictional activity and restores the sample balance to PKR 25,000.</p><div class="dialog-actions"><button class="button secondary" id="cancelReset">Keep activity</button><button class="button primary" id="confirmReset">Reset sample data</button></div></div></dialog>
+<div class="toast" id="toast" role="status" hidden></div>
+</body></html>
