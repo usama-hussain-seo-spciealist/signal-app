@@ -1,0 +1,108 @@
+name: Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'scripts/**'
+      - 'app.js'
+      - 'core.js'
+      - 'jsQR.js'
+      - 'qrcode.js'
+      - 'core.test.cjs'
+      - 'install.test.cjs'
+      - 'index.html'
+      - 'styles.css'
+      - '.github/workflows/android-apk.yml'
+permissions:
+  contents: read
+concurrency:
+  group: signalpay-android-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build-test-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    env:
+      VERSION: '1.2.0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          gradle-version: '8.11.1'
+      - name: Validate web demo and bundle existing assets
+        run: |
+          node --test core.test.cjs install.test.cjs
+          node --check app.js
+          node scripts/package-android.cjs
+      - name: Build signed release APK and emulator test APKs
+        env:
+          SIGNALPAY_ANDROID_KEYSTORE: ${{ secrets.SIGNALPAY_ANDROID_KEYSTORE }}
+          SIGNALPAY_STORE_PASSWORD: ${{ secrets.SIGNALPAY_ANDROID_STORE_PASSWORD }}
+        run: |
+          test -n "$SIGNALPAY_ANDROID_KEYSTORE"
+          test -n "$SIGNALPAY_STORE_PASSWORD"
+          mkdir -p "$RUNNER_TEMP/signalpay-signing"
+          export SIGNALPAY_KEYSTORE_PATH="$RUNNER_TEMP/signalpay-signing/demo.p12"
+          printf '%s' "$SIGNALPAY_ANDROID_KEYSTORE" | base64 --decode > "$SIGNALPAY_KEYSTORE_PATH"
+          chmod 600 "$SIGNALPAY_KEYSTORE_PATH"
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' > /dev/null
+          gradle -p android assembleRelease assembleDebug assembleDebugAndroidTest --no-daemon
+          rm -f "$SIGNALPAY_KEYSTORE_PATH"
+      - name: Verify APK signature, manifest and checksum
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/release/app-release.apk "dist/SignalPay-demo-$VERSION.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "dist/SignalPay-demo-$VERSION.apk" | tee dist/signature-verification.txt
+          fingerprint=$(sed -n 's/Signer #1 certificate SHA-256 digest: //p' dist/signature-verification.txt)
+          test "$fingerprint" = "$(tr -d '\r\n' < android/signing-certificate.sha256)"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "dist/SignalPay-demo-$VERSION.apk" | tee dist/apk-manifest.txt
+          grep "package: name='com.signalpay.demo'" dist/apk-manifest.txt
+          grep "sdkVersion:'26'" dist/apk-manifest.txt
+          ! grep -E 'android.permission.(SEND_SMS|READ_SMS|READ_CONTACTS|RECORD_AUDIO)' dist/apk-manifest.txt
+          (cd dist && sha256sum "SignalPay-demo-$VERSION.apk" > SHA256SUMS.txt)
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install release and test QR, payments, soundbox and virtual camera
+        uses: ReactiveCircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back emulated -camera-front emulated
+          disable-animations: true
+          script: |
+            adb install -r "dist/SignalPay-demo-$VERSION.apk"
+            adb shell am start -W -n com.signalpay.demo/.MainActivity
+            sleep 5
+            adb shell screencap -p /sdcard/signalpay-release.png
+            adb pull /sdcard/signalpay-release.png dist/release-emulator.png
+            adb shell am force-stop com.signalpay.demo
+            gradle -p android connectedDebugAndroidTest --no-daemon
+      - name: Save APK and verification reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: SignalPay-Android-build
+          path: |
+            dist/
+            android/app/build/reports/androidTests/
+            android/app/build/outputs/androidTest-results/
+          if-no-files-found: warn
+      - name: Publish verified APK to GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/release-notes.cjs > dist/release-notes.md
+          gh release create "android-v$VERSION" "dist/SignalPay-demo-$VERSION.apk" dist/SHA256SUMS.txt dist/signature-verification.txt dist/apk-manifest.txt dist/release-emulator.png --target "$GITHUB_SHA" --title "SignalPay Demo for Android v$VERSION" --notes-file dist/release-notes.md --latest

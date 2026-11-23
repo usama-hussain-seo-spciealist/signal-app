@@ -101,7 +101,10 @@ function announce(cents) {
   if (!$('soundEnabled').checked) { $('soundStatus').textContent = 'Sound muted. The simulated receipt is still shown.'; return; }
   prepareAudio(); let played = false;
   try { if (audioContext) { const start = audioContext.currentTime; [660, 880, 1100].forEach((frequency, i) => { const oscillator = audioContext.createOscillator(), gain = audioContext.createGain(); oscillator.frequency.value = frequency; gain.gain.setValueAtTime(.0001, start + i * .12); gain.gain.exponentialRampToValueAtTime(.09, start + i * .12 + .02); gain.gain.exponentialRampToValueAtTime(.0001, start + i * .12 + .2); oscillator.connect(gain); gain.connect(audioContext.destination); oscillator.start(start + i * .12); oscillator.stop(start + i * .12 + .22); }); played = true; } } catch (_) {}
-  if ('speechSynthesis' in window) {
+  if (window.SignalSoundbox) {
+    window.SignalSoundbox.onmessage = event => $('soundStatus').textContent = event.data;
+    window.SignalSoundbox.postMessage(JSON.stringify({ action: 'speak', cents })); played = true;
+  } else if ('speechSynthesis' in window) {
     speechSynthesis.cancel(); const speech = new SpeechSynthesisUtterance('Demo payment received. ' + cents / 100 + ' Pakistani rupees. This is a simulation.'); speech.lang = 'en-PK'; speech.rate = .95;
     speech.onerror = () => $('soundStatus').textContent = 'Voice is unavailable. The soundbox message is shown here: demo payment received, ' + money(cents) + '.';
     speechSynthesis.speak(speech); played = true;
@@ -109,7 +112,7 @@ function announce(cents) {
   $('soundStatus').textContent = played ? 'Soundbox preview: Demo payment received, ' + money(cents) + '. Audio depends on device volume and browser voice support.' : 'Audio is unavailable. Demo payment received: ' + money(cents) + '.';
 }
 $('testSound').addEventListener('click', () => announce(50000));
-$('soundEnabled').addEventListener('change', () => { if (!$('soundEnabled').checked && 'speechSynthesis' in window) speechSynthesis.cancel(); $('soundStatus').textContent = $('soundEnabled').checked ? 'Sound on for the next simulated merchant receipt.' : 'Sound muted.'; });
+$('soundEnabled').addEventListener('change', () => { if (!$('soundEnabled').checked) { if ('speechSynthesis' in window) speechSynthesis.cancel(); window.SignalSoundbox?.postMessage(JSON.stringify({ action: 'stop' })); } $('soundStatus').textContent = $('soundEnabled').checked ? 'Sound on for the next simulated merchant receipt.' : 'Sound muted.'; });
 function finish(input) {
   state = D.transact(state, input); persist(); render();
   const recipient = D.recipients[input.recipient];

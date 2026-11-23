@@ -4,6 +4,10 @@
   const button = document.getElementById('installButton');
   const status = document.getElementById('installStatus');
   const help = document.getElementById('installHelp');
+  if (location.hostname === 'appassets.androidplatform.net') {
+    const installLink = document.querySelector('.profile a[href="./install.html"]');
+    if (installLink) { installLink.textContent = 'Android demo'; installLink.removeAttribute('href'); }
+  }
   const standalone = window.matchMedia('(display-mode: standalone)');
   function installed() {
     if (button) { button.textContent = 'App installed'; button.disabled = true; }
@@ -37,7 +41,7 @@
     if (iphone) iphone.open = true; if (android) android.open = false;
     if (status && !standalone.matches && !navigator.standalone) status.textContent = 'On iPhone, open in Safari, then use Share and Add to Home Screen.';
   }
-  if ('serviceWorker' in navigator && window.isSecureContext) {
+  if ('serviceWorker' in navigator && window.isSecureContext && location.hostname !== 'appassets.androidplatform.net') {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' })
         .then(() => navigator.serviceWorker.ready)

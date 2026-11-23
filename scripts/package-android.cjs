@@ -1,0 +1,9 @@
+'use strict';
+const fs = require('node:fs'), path = require('node:path');
+const root = path.resolve(__dirname, '..');
+const destination = path.join(root, 'android/app/src/main/assets/www');
+fs.mkdirSync(destination, { recursive: true });
+const assets = ['index.html','app.js','core.js','styles.css','jsQR.js','qrcode.js','icon.svg','icon-180.png','icon-192.png','icon-512.png','install.html','install.css','install.js','manifest.webmanifest','jsQR-LICENSE','qrcode-LICENSE'];
+for (const file of assets) fs.copyFileSync(path.join(root, file), path.join(destination, file));
+// Every APK uses the web application at the same source commit. No remote code is loaded.
+console.log(`Bundled ${assets.length} existing web assets for Android.`);
