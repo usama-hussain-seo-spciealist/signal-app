@@ -1,4 +1,4 @@
-console.log(`# SignalPay Demo for Android v1.2.0
+console.log(`# SignalPay Demo for Android v${process.env.VERSION}
 
 Install the signed APK on Android 8.0 or newer. The APK bundles the existing SignalPay web application and works without a network connection.
 

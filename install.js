@@ -62,7 +62,7 @@
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' })
         .then(() => navigator.serviceWorker.ready)
-        .then(() => { const offline = document.getElementById('offlineStatus'); if (offline) offline.textContent = 'Demo saved on this device for offline use. Camera and audio still depend on your browser and device.'; })
+        .then(() => { const offline = document.getElementById('offlineStatus'); if (offline && !document.getElementById('decodedResult')) offline.textContent = 'Demo saved on this device for offline use. Camera and audio still depend on your browser and device.'; })
         .catch(() => { const offline = document.getElementById('offlineStatus'); if (offline) offline.textContent = 'Offline saving is unavailable in this browser. You can still use the demo online.'; });
     }, { once: true });
   }

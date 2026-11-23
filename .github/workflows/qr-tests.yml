@@ -1,0 +1,26 @@
+name: QR browser verification
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['*.js', '*.cjs', '*.html', '*.css', 'test-qrs/**', 'browser-tests/**', 'scripts/**', 'package*.json', '.github/workflows/qr-tests.yml']
+permissions:
+  contents: read
+jobs:
+  browser-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm test
+      - name: Chromium and WebKit QR, image, simulation and offline tests
+        run: npm run test:browser
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: QR-browser-verification
+          path: |
+            browser-results/
+            test-results/

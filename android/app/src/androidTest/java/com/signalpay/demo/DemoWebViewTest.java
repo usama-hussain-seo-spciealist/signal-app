@@ -35,8 +35,8 @@ public class DemoWebViewTest {
     }
     @Test public void sampleQRPaymentAndSms() throws Exception {
         js("document.getElementById('sampleScan').click()");
-        until("document.getElementById('scanStatus').textContent.includes('Sample QR read: Chai Corner')");
-        js("document.getElementById('paymentForm').requestSubmit()");
+        until("document.getElementById('decodedData').textContent==='signalpay-demo:v2:chai:PKR:100.00'");
+        js("document.getElementById('useScanned').click();document.getElementById('amount').value='250';document.getElementById('paymentForm').requestSubmit()");
         until("document.getElementById('reviewDialog').open");
         js("document.getElementById('confirmPayment').click()");
         until("document.getElementById('balance').textContent==='PKR 24,750.00'");

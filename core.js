@@ -9,9 +9,14 @@
     return cents;
   }
   function parseQR(raw) {
-    const match = /^signalpay-demo:v1:(chai|books|friend)$/.exec(raw);
-    if (!match) throw new Error('This is not a SignalPay sample QR. Real banking, wallet and other QR codes are not supported.');
-    return match[1];
+    return parsePaymentQR(raw).recipient;
+  }
+  function parsePaymentQR(raw) {
+    const legacy = /^signalpay-demo:v1:(chai|books|friend)$/.exec(raw);
+    if (legacy) return { recipient: legacy[1], cents: null, currency: 'PKR' };
+    const match = /^signalpay-demo:v2:(chai|books|friend):PKR:(\d+\.\d{2})$/.exec(raw);
+    if (!match) throw new Error('Decoded successfully. This is not a supported demo payment QR. No payment was created.');
+    return { recipient: match[1], currency: 'PKR', cents: amountToCents(match[2]) };
   }
   function transact(state, input) {
     if (!recipients[input.recipient] || !['payment', 'sale'].includes(input.kind)) throw new Error('Choose a sample recipient.');
@@ -24,7 +29,7 @@
   function validState(value) {
     return value && Number.isSafeInteger(value.balance) && value.balance >= 0 && value.balance <= 2500000 && Array.isArray(value.transactions) && value.transactions.length <= 50 && value.transactions.every(t => t && recipients[t.recipient] && ['payment', 'sale'].includes(t.kind) && Number.isSafeInteger(t.cents) && t.cents >= 100 && t.cents <= 10000000 && typeof t.id === 'string' && t.id.length < 100 && typeof t.time === 'string' && Number.isFinite(Date.parse(t.time)));
   }
-  const api = { recipients, initial, amountToCents, parseQR, transact, validState };
+  const api = { recipients, initial, amountToCents, parseQR, parsePaymentQR, transact, validState };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SignalDemo = api;
 })(typeof window !== 'undefined' ? window : globalThis);

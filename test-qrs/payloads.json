@@ -1,0 +1,10 @@
+[
+  {
+    "name": "simple",
+    "raw": "SIGNALPAY-TEST-123"
+  },
+  {
+    "name": "payment-100",
+    "raw": "signalpay-demo:v2:chai:PKR:100.00"
+  }
+]

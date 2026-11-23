@@ -3,7 +3,7 @@
 const $ = id => document.getElementById(id);
 const D = window.SignalDemo;
 const storageKey = 'signalpay-demo-v1';
-let state = D.initial(), storageAvailable = true, pending = null, toastTimer, stream = null, cameraToken = 0, scanTimer, audioContext;
+let state = D.initial(), storageAvailable = true, pending = null, toastTimer, audioContext;
 try { const saved = JSON.parse(localStorage.getItem(storageKey)); if (D.validState(saved)) state = saved; } catch (_) { storageAvailable = false; }
 const money = cents => 'PKR ' + (cents / 100).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 6500); }
@@ -23,7 +23,7 @@ function render() {
   }
 }
 function makeQR() {
-  const qr = qrcode(0, 'M'); qr.addData('signalpay-demo:v1:chai'); qr.make();
+  const qr = qrcode(0, 'M'); qr.addData('signalpay-demo:v2:chai:PKR:100.00'); qr.make();
   $('merchantQR').innerHTML = qr.createSvgTag({ cellSize: 5, margin: 20, scalable: true });
   $('downloadQR').href = sampleCanvas(qr).toDataURL('image/png');
   return qr;
@@ -36,63 +36,81 @@ function sampleCanvas(qr) {
   for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (qr.isDark(r, c)) ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
   return canvas;
 }
-function decodeCanvas(canvas) {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const result = jsQR(pixels.data, canvas.width, canvas.height, { inversionAttempts: 'attemptBoth' });
-  if (!result) throw new Error('No readable QR found. Use a clear, well-lit image or try the sample QR.');
-  return D.parseQR(result.data);
+let scannedPayment = null, imageGeneration = 0;
+const resultKey = 'signalpay-last-qr-v1';
+function showDecoded(raw, source, restored = false) {
+  $('decodedResult').hidden = false;
+  $('decodedData').textContent = raw;
+  $('decodedSource').textContent = (restored ? 'Saved result · ' : 'Decoded successfully · ') + source;
+  $('scanStatus').textContent = 'QR decoded successfully. Camera stopped intentionally; exact data is kept below.';
+  scannedPayment = null;
+  try {
+    scannedPayment = D.parsePaymentQR(raw);
+    $('decodedMeaning').textContent = 'Demo receiver ID: ' + scannedPayment.recipient + ' · ' + D.recipients[scannedPayment.recipient].name + (scannedPayment.cents === null ? ' · Choose an amount below.' : ' · ' + money(scannedPayment.cents)) + '. Fictional identity, not verified. No payment has been made.';
+  } catch (_) { $('decodedMeaning').textContent = 'Text QR decoded successfully. It is not a supported demo payment code. No payment was created and no link was opened.'; }
+  $('useScanned').hidden = !scannedPayment;
+  if (!restored) try { localStorage.setItem(resultKey, JSON.stringify({ raw, source })); } catch (_) {}
 }
-function selectScannedRecipient(id) {
-  $('recipient').value = id; stopCamera();
-  $('scanStatus').textContent = 'Sample QR read: ' + D.recipients[id].name + '. Fictional recipient; identity not verified. Review the amount below.';
-  $('amount').focus();
-}
+const camera = SignalScanner.createCamera({
+  video: $('video'), canvas: document.createElement('canvas'), media: navigator.mediaDevices, decoder: jsQR,
+  status: message => $('scanStatus').textContent = message,
+  preview: active => { $('video').hidden = !active; $('scanPlaceholder').hidden = active; $('stopCamera').hidden = !active; $('startCamera').disabled = active; },
+  result: showDecoded
+});
+function stopCamera() { imageGeneration++; camera.stop(); }
+$('startCamera').addEventListener('click', () => { imageGeneration++; camera.start(); });
+$('stopCamera').addEventListener('click', () => { stopCamera(); $('scanStatus').textContent = 'Camera stopped. Last decoded result remains below. Start again or upload a QR image.'; });
 $('sampleScan').addEventListener('click', () => {
-  try {
-    selectScannedRecipient(decodeCanvas(sampleCanvas(sampleQR)));
-  } catch (error) { $('scanStatus').textContent = error.message; }
+  stopCamera();
+  try { const raw = SignalScanner.decode(sampleCanvas(sampleQR), jsQR); if (raw === null) throw new Error('Sample QR could not be decoded. Reload the updated app.'); showDecoded(raw, 'Generated demo QR'); }
+  catch (error) { $('scanStatus').textContent = error.message; }
 });
-function stopCamera() {
-  cameraToken++; clearTimeout(scanTimer); if (stream) stream.getTracks().forEach(track => track.stop()); stream = null;
-  $('video').srcObject = null; $('video').hidden = true; $('scanPlaceholder').hidden = false; $('stopCamera').hidden = true; $('startCamera').disabled = false;
+$('useScanned').addEventListener('click', () => {
+  if (!scannedPayment) return;
+  $('recipient').value = scannedPayment.recipient;
+  if (scannedPayment.cents !== null) $('amount').value = (scannedPayment.cents / 100).toFixed(2);
+  $('scanStatus').textContent = 'Demo details copied below. Review and confirm separately. This does not deliver a payment to another device.';
+});
+$('clearDecoded').addEventListener('click', () => { scannedPayment = null; $('decodedResult').hidden = true; $('decodedData').textContent = ''; try { localStorage.removeItem(resultKey); } catch (_) {} });
+async function decodeImage(blob, source) {
+  stopCamera(); const token = imageGeneration;
+  const url = URL.createObjectURL(blob), image = new Image();
+  $('scanStatus').textContent = 'Reading QR image on this device…';
+  try {
+    await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error('Image could not open. Choose a PNG, JPG or WebP image.')); image.src = url; });
+    if (token !== imageGeneration) return;
+    const ratio = Math.min(1, 1800 / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas'); canvas.width = Math.round(image.naturalWidth * ratio); canvas.height = Math.round(image.naturalHeight * ratio);
+    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const raw = SignalScanner.decode(canvas, jsQR);
+    if (raw === null) throw new Error('No readable QR found. Include the full square and white border; use a sharp, well-lit image. Your previous result is kept.');
+    showDecoded(raw, source);
+  } catch (error) { if (token === imageGeneration) $('scanStatus').textContent = error.message; }
+  finally { URL.revokeObjectURL(url); }
 }
-$('stopCamera').addEventListener('click', () => { stopCamera(); $('scanStatus').textContent = 'Camera stopped. You can scan the sample or upload a QR image.'; });
-$('startCamera').addEventListener('click', async () => {
-  stopCamera(); const token = cameraToken; $('startCamera').disabled = true;
-  if (!navigator.mediaDevices?.getUserMedia) { $('scanStatus').textContent = 'Camera is unavailable in this browser. Use the sample QR or upload an image.'; $('startCamera').disabled = false; return; }
-  $('scanStatus').textContent = 'Waiting for camera permission. Camera frames stay on this device.';
-  try {
-    const acquired = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 640 } }, audio: false });
-    if (token !== cameraToken || document.hidden) { acquired.getTracks().forEach(t => t.stop()); return; }
-    stream = acquired; const video = $('video'); video.srcObject = stream; video.hidden = false; $('scanPlaceholder').hidden = true; $('stopCamera').hidden = false; await video.play();
-    if (token !== cameraToken) return;
-    $('scanStatus').textContent = 'Point your camera at a SignalPay sample QR. Real payment codes are unsupported.';
-    const canvas = document.createElement('canvas');
-    const scan = () => {
-      if (token !== cameraToken || !stream) return;
-      if (video.readyState >= 2 && video.videoWidth) {
-        const scale = Math.min(1, 640 / video.videoWidth); canvas.width = Math.round(video.videoWidth * scale); canvas.height = Math.round(video.videoHeight * scale);
-        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-        const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
-        const result = jsQR(pixels.data, canvas.width, canvas.height);
-        if (result) { try { selectScannedRecipient(D.parseQR(result.data)); } catch (error) { stopCamera(); $('scanStatus').textContent = error.message; } return; }
-      }
-      scanTimer = setTimeout(scan, 180);
-    }; scan();
-  } catch (error) {
-    if (token !== cameraToken) return; stopCamera();
-    $('scanStatus').textContent = error.name === 'NotAllowedError' ? 'Camera permission was denied. Use the sample QR or upload an image instead.' : 'Could not start the camera. Check that it is available, or use the sample QR.';
-  }
+$('qrFile').addEventListener('change', event => {
+  const file = event.target.files[0]; event.target.value = ''; if (!file) return;
+  if (file.size > 10000000) { $('scanStatus').textContent = 'Choose an image smaller than 10 MB.'; return; }
+  decodeImage(file, 'Uploaded image');
 });
-$('qrFile').addEventListener('change', async event => {
-  stopCamera(); const file = event.target.files[0]; if (!file) return;
-  if (file.size > 10000000) { $('scanStatus').textContent = 'Choose a QR image smaller than 10 MB.'; event.target.value = ''; return; }
-  let bitmap;
-  try { bitmap = await createImageBitmap(file); const ratio = Math.min(1, 1400 / Math.max(bitmap.width, bitmap.height)); const canvas = document.createElement('canvas'); canvas.width = Math.round(bitmap.width * ratio); canvas.height = Math.round(bitmap.height * ratio); const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height); selectScannedRecipient(decodeCanvas(canvas)); }
-  catch (error) { $('scanStatus').textContent = error.message.startsWith('This is') || error.message.startsWith('No readable') ? error.message : 'Could not read this image. Try a PNG, JPG or WebP sample QR.'; }
-  finally { bitmap?.close(); event.target.value = ''; }
-});
+document.querySelectorAll('[data-test-qr]').forEach(button => button.addEventListener('click', async () => {
+  stopCamera(); const token = imageGeneration;
+  try { const response = await fetch('./test-qrs/' + button.dataset.testQr + '.png'); if (!response.ok) throw new Error(); const blob = await response.blob(); if (token === imageGeneration) await decodeImage(blob, 'Test PNG: ' + button.dataset.testQr); }
+  catch (_) { if (token === imageGeneration) $('scanStatus').textContent = 'Test image is not available. Open online once until Offline ready appears, then retry offline.'; }
+}));
+try { const saved = JSON.parse(localStorage.getItem(resultKey)); if (saved && typeof saved.raw === 'string' && saved.raw.length <= 10000) showDecoded(saved.raw, 'previous scan', true); } catch (_) {}
+function offlineStatus() {
+  const el = $('offlineStatus');
+  if (!('serviceWorker' in navigator) || location.hostname === 'appassets.androidplatform.net') { el.textContent = 'Version 1.3.0 · Bundled local demo. No device-to-device delivery or pending synchronization.'; return; }
+  el.textContent = 'Version 1.3.0 · Preparing offline files. Keep this app open online briefly.';
+  navigator.serviceWorker.ready.then(async () => {
+    const keys = await caches.keys();
+    if (!keys.includes('signalpay-demo-shell-v1.3.0')) { el.textContent = 'Version 1.3.0 · Offline update pending. Close and reopen while online.'; return; }
+    el.textContent = 'Version 1.3.0 · Offline ready on this browser. QR decoding needs no internet. Payments stay on this device; no delivery or sync.';
+  }).catch(() => { el.textContent = 'Version 1.3.0 · Offline files unavailable. Reopen online to cache them.'; });
+}
+offlineStatus();
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('controllerchange', offlineStatus);
 function chooseTab(scan) { stopCamera(); $('scanView').hidden = !scan; $('scanTab').setAttribute('aria-pressed', String(scan)); $('manualTab').setAttribute('aria-pressed', String(!scan)); }
 $('scanTab').addEventListener('click', () => chooseTab(true)); $('manualTab').addEventListener('click', () => chooseTab(false));
 document.querySelectorAll('[data-amount]').forEach(button => button.addEventListener('click', () => $('amount').value = button.dataset.amount));
@@ -134,7 +152,7 @@ $('confirmPayment').addEventListener('click', () => {
 });
 $('receive').addEventListener('click', () => { prepareAudio(); try { finish(transaction('chai', 'sale', 50000)); } catch (error) { toast(error.message); } });
 $('reset').addEventListener('click', () => $('resetDialog').showModal()); $('cancelReset').addEventListener('click', () => $('resetDialog').close());
-$('confirmReset').addEventListener('click', () => { stopCamera(); pending = null; if ('speechSynthesis' in window) speechSynthesis.cancel(); state = D.initial(); persist(); render(); $('sms').textContent = 'Your simulated payment message will appear here. No phone number needed.'; $('scanStatus').textContent = 'Camera stays off until you start it. QR images are processed on your device.'; $('soundStatus').textContent = 'Audio plays on this device only.'; $('amount').value = '250'; $('recipient').value = 'chai'; $('resetDialog').close(); toast('Fresh demo ready. Sample balance restored.'); });
+$('confirmReset').addEventListener('click', () => { stopCamera(); $('clearDecoded').click(); pending = null; if ('speechSynthesis' in window) speechSynthesis.cancel(); state = D.initial(); persist(); render(); $('sms').textContent = 'Your simulated payment message will appear here. No phone number needed.'; $('scanStatus').textContent = 'Camera stays off until you start it. QR images are processed on your device.'; $('soundStatus').textContent = 'Audio plays on this device only.'; $('amount').value = '250'; $('recipient').value = 'chai'; $('resetDialog').close(); toast('Fresh demo ready. Sample balance restored.'); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { stopCamera(); if ('speechSynthesis' in window) speechSynthesis.cancel(); } });
 window.addEventListener('pagehide', stopCamera);
 window.addEventListener('storage', event => { if (event.key !== storageKey) return; try { const next = JSON.parse(event.newValue); state = D.validState(next) ? next : D.initial(); pending = null; $('reviewDialog').close(); render(); toast('Demo activity was updated in another tab.'); } catch (_) {} });

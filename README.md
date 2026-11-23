@@ -5,7 +5,7 @@ A static, browser-only payment concept. **No real money moves, no SMS is sent, n
 ## Try it
 
 - Scan the sample QR through the actual QR decoder, upload a PNG/JPG/WebP QR image, or start the camera on HTTPS/localhost. Camera frames and uploads stay on the device; no image is uploaded to a server.
-- Supported QR payloads: `signalpay-demo:v1:chai`, `signalpay-demo:v1:books`, `signalpay-demo:v1:friend`. All other codes, including actual banking/wallet codes, are rejected. Codes never trigger navigation or automatic payments.
+- Every readable text QR displays its exact decoded data, independently of payment validation. Demo payment payloads include legacy `signalpay-demo:v1:chai` (also books/friend) and `signalpay-demo:v2:chai:PKR:100.00`. Only known fictional receiver IDs and bounded PKR amounts can populate a demo draft, through a separate explicit button. Other QR contents cannot trigger navigation or payments.
 - Review and confirm a payment to debit the sample wallet. Merchant payments also simulate a receipt, SMS preview and soundbox announcement. A standalone incoming sale simulates only merchant activity; it does not credit the customer wallet.
 - Activity is stored locally in this browser, capped at the most recent 50 records. Summary counts and merchant receipt totals describe those retained records. Reset restores the initial PKR 25,000 balance. This is not a trusted ledger; browser storage can be edited or cleared, and simultaneous tabs are not a transaction backend.
 - Audio uses Web Audio and optional device speech synthesis. Voices and sound availability vary by browser; a text confirmation always remains available. Toggle sound off to mute alerts.
@@ -29,7 +29,15 @@ Emulator checks exercise real WebView QR decoding, demo wallet/SMS updates, nati
 
 Publish GitHub Pages from `main` and `/ (root)`. All assets use relative paths, with no build step or hosted service dependency. Hostinger can also serve these same static files later.
 
-For local preview, run any static HTTP server in the repository root. Run `node --test core.test.cjs` to check amount validation, QR restrictions, wallet invariants and scanner decoding.
+For local preview, run any static HTTP server in the repository root. `npm test` runs 19 Node tests; `npm ci`, `npx playwright install --with-deps chromium webkit`, then `npm run test:browser` runs controlled browser checks. The QR browser verification workflow publishes its results and failure traces. The two deterministic PNG fixtures in `test-qrs/` are generated with `node scripts/qr-fixtures.cjs` and decoded with the real vendored jsQR library in both Node and browser tests.
+
+## Scanner fix and verification limits (1.3.0)
+
+The previous scanner decoded frames then immediately passed the result through a strict payment parser. A successfully decoded plain-text QR was rejected and the camera stopped without showing its raw data. Payment QR success also hid the camera and focused the amount field. The updated scanner separates raw decoding, persistent result display, optional payment classification and explicit draft selection. Timer callback errors are caught, transient frame errors retry, track interruption/permission failures have actionable messages, and late streams after cancellation are stopped. iOS uses inline muted video and an image-element upload path without requiring createImageBitmap. Raw data is inserted with textContent; it never opens a URL or executes HTML. The last result is stored only on this browser and can be cleared.
+
+All decoder scripts, test PNGs and the app shell are cached by service worker v1.3.0. Open online until the version and Offline ready message appear before testing a cold offline reopen. Browser storage eviction or clearing site data requires an online recache. Automated offline emulation is distinct from turning off a physical iPhone's Wi-Fi and mobile data. WebKit desktop automation checks image decoding and UI, not physical iPhone camera access, PWA lifecycle or audible speaker output.
+
+**Offline device-to-device payments are not implemented.** There is no sender/receiver transport, receiver acknowledgment, receiver balance/history update, durable pending outbox, server ledger or reconnect synchronization. A localStorage event updates tabs in the same browser; it does not communicate between devices. The merchant panel and soundbox on the sender are local simulated previews. A separate-browser test confirms that the receiver does not gain balance or history after the sender's simulation. This is a limitation audit, not a successful offline transfer test.
 
 ## Third-party code
 
