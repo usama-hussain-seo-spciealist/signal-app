@@ -13,7 +13,17 @@ A static, browser-only payment concept. **No real money moves, no SMS is sent, n
 
 ## Install on mobile
 
-Open `install.html` over HTTPS. Android Chrome can show a native install prompt when the browser considers the demo eligible; the page also provides browser-menu instructions. On iPhone, open in Safari and choose Share, Add to Home Screen. This is an installable web demo, with a manifest, home-screen icons and a scoped service worker. The first online visit saves the app shell for offline use; data remains fictional and browser-local. Installation options and storage availability depend on the browser. Uninstalling or clearing browser/site data can remove the demo history.
+Open `install.html` over HTTPS. Android users can download the signed APK once `android-release.json` records a verified Release. It requires Android 8.0+ and bundles this repository's web assets. On iPhone, open in Safari and choose Share, Add to Home Screen. The optional installable web demo remains available. Data is fictional and stored only on the device; APK and browser/PWA storage are separate. Uninstalling or clearing app/site data can remove demo history.
+
+## Android app and APK releases
+
+`android/` contains a Java WebView app (`com.signalpay.demo`). It serves bundled web assets through AndroidX WebViewAssetLoader on a local HTTPS origin, with remote WebView navigation blocked. There is no banking backend or SMS service. Only Internet and Camera permissions are declared. Video-only camera permission is granted to the bundled app origin after Android runtime approval; microphone access is denied. QR image selection uses the system document picker. The native soundbox bridge is restricted to the bundled main frame and accepts only a validated fictional amount or stop request.
+
+The `Android APK` workflow uses JDK 17, Gradle 8.11.1, Android Gradle Plugin 8.9.2 and compile/target SDK 35. It bundles the existing web assets, builds a signed release APK, verifies its signature and manifest, installs/launches it on an Android emulator, and runs WebView instrumented tests before publishing a GitHub Release with APK, checksum, signature report, manifest and emulator screenshot. A failed build or emulator check prevents publishing.
+
+The signing PKCS12 and password are stored in encrypted repository Actions secrets `SIGNALPAY_ANDROID_KEYSTORE` and `SIGNALPAY_ANDROID_STORE_PASSWORD`. The public certificate fingerprint is in `android/signing-certificate.sha256`. Do not commit signing keys. Keep this signing identity for future updates and increment `versionCode`, `versionName` and workflow `VERSION` for a new release. Workflow Runs can also be started manually. Existing release tags/assets are not silently overwritten.
+
+Emulator checks exercise real WebView QR decoding, demo wallet/SMS updates, native soundbox requests/mute, emulated camera video/start/stop and navigation restrictions. They do not certify printed-code scanning with physical phone cameras, audible speaker quality, installed voice availability, OEM permission prompts or system image-picker behavior. Those need hands-on device testing.
 
 ## Deployment
 
