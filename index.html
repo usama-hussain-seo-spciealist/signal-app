@@ -4,9 +4,12 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Try SignalPay: a QR payment concept with simulated payments, SMS previews and soundbox audio. No real money moves.">
   <meta name="theme-color" content="#24215a"><title>SignalPay · Interactive demo</title>
-  <link rel="icon" href="./icon.svg?v=1.0.1" type="image/svg+xml"><link rel="stylesheet" href="./styles.css?v=1.0.1">
-  <script src="./jsQR.js?v=1.0.1" defer></script><script src="./qrcode.js?v=1.0.1" defer></script>
-  <script src="./core.js?v=1.0.1" defer></script><script src="./app.js?v=1.0.1" defer></script>
+  <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="SignalPay Demo">
+  <link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-180.png">
+  <link rel="icon" href="./icon.svg?v=1.1.0" type="image/svg+xml"><link rel="stylesheet" href="./styles.css?v=1.1.0">
+  <script src="./install.js?v=1.1.0" defer></script>
+  <script src="./jsQR.js?v=1.1.0" defer></script><script src="./qrcode.js?v=1.1.0" defer></script>
+  <script src="./core.js?v=1.1.0" defer></script><script src="./app.js?v=1.1.0" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to demo</a>
@@ -17,7 +20,7 @@
   <div class="sidebar-bottom"><div class="concept-icon">✧</div><strong>A small signal.<br>A smoother checkout.</strong><p>Explore the idea with demo money.</p><span class="pill">Prototype · v1.0</span></div>
 </aside>
 <div class="workspace">
-  <header class="topbar"><span>Workspace <span class="slash">/</span> <strong>Overview</strong></span><div class="profile"><span class="demo-dot"></span> Demo workspace <span class="avatar">SP</span></div></header>
+  <header class="topbar"><span>Workspace <span class="slash">/</span> <strong>Overview</strong></span><div class="profile"><a class="text-link" href="./install.html">Install app</a><span class="avatar">SP</span></div></header>
   <main id="main">
     <div class="intro"><div><p class="eyebrow">PAYMENTS, WITH A CLEAR SIGNAL</p><h1>Your everyday payments.<br><span>A little more effortless.</span></h1><p>Scan a code. Try a payment. Hear the confirmation.</p></div><button class="button secondary" id="reset">Reset demo</button></div>
     <div class="demo-banner"><span class="info-icon" aria-hidden="true">i</span><p><strong>You're in a simulation.</strong> No real money moves, no SMS is sent, and no bank or account identity is verified. Use sample data only.</p><span class="pill">DEMO ONLY</span></div>

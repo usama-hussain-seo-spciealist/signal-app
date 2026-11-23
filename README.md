@@ -11,7 +11,11 @@ A static, browser-only payment concept. **No real money moves, no SMS is sent, n
 - Audio uses Web Audio and optional device speech synthesis. Voices and sound availability vary by browser; a text confirmation always remains available. Toggle sound off to mute alerts.
 - Camera permission is optional and only requested after Start camera. Tracks stop on Stop camera, switching method, decoding a QR, reset, navigation or hiding the tab. Camera hardware/permissions depend on the device.
 
-## Hosting
+## Install on mobile
+
+Open `install.html` over HTTPS. Android Chrome can show a native install prompt when the browser considers the demo eligible; the page also provides browser-menu instructions. On iPhone, open in Safari and choose Share, Add to Home Screen. This is an installable web demo, with a manifest, home-screen icons and a scoped service worker. The first online visit saves the app shell for offline use; data remains fictional and browser-local. Installation options and storage availability depend on the browser. Uninstalling or clearing browser/site data can remove the demo history.
+
+## Deployment
 
 Publish GitHub Pages from `main` and `/ (root)`. All assets use relative paths, with no build step or hosted service dependency. Hostinger can also serve these same static files later.
 

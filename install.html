@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Install SignalPay Demo</title>
+  <meta name="description" content="Install the SignalPay demo on your phone's home screen. Try QR payments with fictional money.">
+  <meta name="theme-color" content="#24215a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="SignalPay Demo">
+  <link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-180.png"><link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./install.css?v=1.1.0"><script src="./install.js?v=1.1.0" defer></script>
+</head>
+<body>
+  <header><a href="./" class="wordmark">SignalPay<span>.</span></a><span class="badge">DEMO ONLY</span></header>
+  <main>
+    <div class="app-icon"><img src="./icon-192.png" width="88" height="88" alt="SignalPay app icon"></div>
+    <p class="eyebrow">TAKE THE DEMO WITH YOU</p>
+    <h1>A little signal.<br>Right on your phone.</h1>
+    <p class="lede">Keep SignalPay on your home screen.<br>Try sample QR payments, SMS previews and soundbox audio.</p>
+    <div class="actions"><button id="installButton" type="button">Install app</button><a href="./" class="open-link">Open demo</a></div>
+    <p id="installStatus" class="status" role="status">Open this link in your phone's browser to install the web app.</p>
+    <section class="instructions" id="installHelp" tabindex="-1" aria-labelledby="helpTitle">
+      <h2 id="helpTitle">Add it to your home screen</h2>
+      <details id="androidHelp" open><summary>Android · Chrome</summary><ol><li>Is link ko <strong>Chrome</strong> mein kholo.</li><li><strong>Install app</strong> tap karo. Agar prompt na aaye, Chrome ka <strong>⋮ menu</strong> kholo.</li><li><strong>Add to Home screen</strong> ya <strong>Install app</strong> select karke confirm karo.</li></ol></details>
+      <details id="iphoneHelp"><summary>iPhone · Safari</summary><ol><li>Is link ko <strong>Safari</strong> mein kholo.</li><li><strong>Share</strong> kholo, phir <strong>Add to Home Screen</strong> select karo.</li><li><strong>Open as Web App</strong> option aaye to on rakho, phir <strong>Add</strong> tap karo.</li></ol></details>
+      <p class="browser-note">WhatsApp ya kisi aur app ke andar link khula hai? Menu se Chrome / Safari mein open karo. Available install options browser par depend karte hain.</p>
+    </section>
+    <aside class="demo-note"><strong>A safe place to try the idea.</strong><p>All balances, recipients and payments are fictional. No actual money moves, no SMS is sent, and no account identity is verified.</p></aside>
+    <p class="offline-note" id="offlineStatus" role="status">The demo can be saved for offline use after your first online visit.</p>
+  </main>
+  <footer>SignalPay Demo <span>Made to explore. Built for sample payments.</span></footer>
+</body>
+</html>
