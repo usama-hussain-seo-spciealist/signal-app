@@ -12,6 +12,13 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== base.origin || !url.pathname.startsWith(base.pathname) || !paths.has(url.pathname)) return;
+  if (url.pathname === new URL('./android-release.json', base).pathname) {
+    event.respondWith(caches.open(CACHE).then(async cache => {
+      try { const response = await fetch(event.request); if (!response.ok) throw new Error('Release metadata unavailable'); await cache.put(event.request, response.clone()); return response; }
+      catch (_) { return cache.match(event.request); }
+    }));
+    return;
+  }
   if (event.request.mode === 'navigate') {
     const fallback = new URL(url.pathname.endsWith('/install.html') ? './install.html' : './index.html', base).href;
     event.respondWith(fetch(event.request).catch(() => caches.open(CACHE).then(cache => cache.match(fallback))));

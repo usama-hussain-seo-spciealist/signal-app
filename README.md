@@ -29,7 +29,7 @@ Emulator checks exercise real WebView QR decoding, demo wallet/SMS updates, nati
 
 Publish GitHub Pages from `main` and `/ (root)`. All assets use relative paths, with no build step or hosted service dependency. Hostinger can also serve these same static files later.
 
-For local preview, run any static HTTP server in the repository root. `npm test` runs 19 Node tests; `npm ci`, `npx playwright install --with-deps chromium webkit`, then `npm run test:browser` runs controlled browser checks. The QR browser verification workflow publishes its results and failure traces. The two deterministic PNG fixtures in `test-qrs/` are generated with `node scripts/qr-fixtures.cjs` and decoded with the real vendored jsQR library in both Node and browser tests.
+For local preview, run any static HTTP server in the repository root. `npm test` runs 20 Node tests; `npm ci`, `npx playwright install --with-deps chromium webkit`, then `npm run test:browser` runs controlled browser checks. The QR browser verification workflow publishes its results and failure traces. The two deterministic PNG fixtures in `test-qrs/` are generated with `node scripts/qr-fixtures.cjs` and decoded with the real vendored jsQR library in both Node and browser tests.
 
 ## Scanner fix and verification limits (1.3.0)
 
