@@ -6,7 +6,7 @@ test('online PNG decoding displays exact text; payment needs explicit confirmati
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('./');
  await page.locator('.qr-tests summary').click();await page.locator('[data-test-qr="simple"]').click();await decoded(page,simple);await expect(page.locator('#useScanned')).toBeHidden();await expect(page.locator('#balance')).toHaveText('PKR 25,000.00');
  await page.locator('[data-test-qr="payment-100"]').click();await decoded(page,payment);await expect(page.locator('#balance')).toHaveText('PKR 25,000.00');
- await page.locator('#useScanned').click();await expect(page.locator('#amount')).toHaveValue('100.00');await page.locator('#paymentForm button[type=submit]').click();await page.locator('#confirmPayment').click();await expect(page.locator('#balance')).toHaveText('PKR 24,900.00');await expect(page.locator('#sms')).toContainText('NOT SENT');await expect(page.locator('#soundStatus')).toContainText('Soundbox preview');await expect(page.locator('#activityRows')).toContainText('Simulated');
+ await page.locator('#useScanned').click();await expect(page.locator('#amount')).toHaveValue('100.00');await page.locator('#paymentForm button[type=submit]').click();await page.locator('#confirmPayment').click();await expect(page.locator('#balance')).toHaveText('PKR 24,900.00');await expect(page.locator('#sms')).toContainText('NOT SENT');await expect(page.locator('#soundStatus')).toContainText(/(?:Soundbox preview|Voice is unavailable)[\s\S]*PKR 100\.00/);await expect(page.locator('#activityRows')).toContainText('Simulated');
  await page.reload();await decoded(page,payment);expect(errors).toEqual([]);
 });
 test('uploaded PNG uses browser image decoder and failure preserves last result',async({page})=>{
@@ -29,6 +29,10 @@ test('synthetic camera frames run real decoder, stop camera, keep text result',a
 });
 test('camera denied has useful error rather than silently resetting',async({page})=>{
  await page.addInitScript(()=>Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>{throw new DOMException('denied','NotAllowedError')}}));await page.goto('./');await page.locator('#startCamera').click();await expect(page.locator('#scanStatus')).toContainText('permission was denied');await expect(page.locator('#startCamera')).toBeEnabled();
+});
+test('soundbox requests the demo announcement and mute prevents further speech',async({page})=>{
+ await page.addInitScript(()=>{window.__spoken=[];Object.defineProperty(window,'speechSynthesis',{value:{cancel(){},speak(utterance){window.__spoken.push(utterance.text)}}});});
+ await page.goto('./');await page.locator('#testSound').click();expect(await page.evaluate(()=>__spoken)).toEqual(['Demo payment received. 500 Pakistani rupees. This is a simulation.']);await page.locator('#soundEnabled').uncheck();await page.locator('#testSound').click();await expect(page.locator('#soundStatus')).toContainText('Sound muted');expect(await page.evaluate(()=>__spoken.length)).toBe(1);
 });
 test('offline cold page reopen decodes both cached PNGs without any server',async({page,context,browserName})=>{
  test.skip(browserName!=='chromium','Playwright WebKit offline/SW emulation is not a physical Safari offline test. Chromium checks the real service worker.');
