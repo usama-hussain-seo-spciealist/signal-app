@@ -19,4 +19,4 @@ For local preview, run any static HTTP server in the repository root. Run `node 
 
 ## Third-party code
 
-Vendored `jsqr@1.4.0` (Apache-2.0; see `jsQR-LICENSE`) and `qrcode-generator@1.4.4` (MIT license included in `qrcode.js`). No runtime CDN requests, analytics, banking, authentication or SMS endpoints are used.
+Vendored `jsqr@1.4.0` (Apache-2.0; see `jsQR-LICENSE`) and `qrcode-generator@1.4.4` (MIT; see `qrcode-LICENSE`). No runtime CDN requests, analytics, banking, authentication or SMS endpoints are used.

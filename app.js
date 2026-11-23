@@ -25,10 +25,17 @@ function render() {
 function makeQR() {
   const qr = qrcode(0, 'M'); qr.addData('signalpay-demo:v1:chai'); qr.make();
   $('merchantQR').innerHTML = qr.createSvgTag({ cellSize: 5, margin: 20, scalable: true });
-  $('downloadQR').href = URL.createObjectURL(new Blob([qr.createSvgTag({ cellSize: 10, margin: 40, scalable: true })], { type: 'image/svg+xml' }));
+  $('downloadQR').href = sampleCanvas(qr).toDataURL('image/png');
   return qr;
 }
 const sampleQR = makeQR();
+function sampleCanvas(qr) {
+  const size = qr.getModuleCount(), scale = 8, margin = 4;
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = (size + margin * 2) * scale;
+  const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#000';
+  for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (qr.isDark(r, c)) ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
+  return canvas;
+}
 function decodeCanvas(canvas) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -43,11 +50,7 @@ function selectScannedRecipient(id) {
 }
 $('sampleScan').addEventListener('click', () => {
   try {
-    const size = sampleQR.getModuleCount(), scale = 8, margin = 4;
-    const canvas = document.createElement('canvas'); canvas.width = canvas.height = (size + margin * 2) * scale;
-    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#000';
-    for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (sampleQR.isDark(r, c)) ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
-    selectScannedRecipient(decodeCanvas(canvas));
+    selectScannedRecipient(decodeCanvas(sampleCanvas(sampleQR)));
   } catch (error) { $('scanStatus').textContent = error.message; }
 });
 function stopCamera() {
