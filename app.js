@@ -13,7 +13,7 @@ function render() {
   $('balance').textContent = money(state.balance);
   $('paymentCount').textContent = state.transactions.filter(t => t.kind === 'payment').length;
   $('receivedTotal').textContent = money(state.transactions.filter(t => t.kind === 'sale' || D.recipients[t.recipient].type === 'merchant').reduce((sum, t) => sum + t.cents, 0));
-  const rows = $('activityRows'); rows.replaceChildren();
+  const rows = $('activityRows'); rows.textContent = '';
   if (!state.transactions.length) { const tr = document.createElement('tr'); const td = cell(tr, 'Your first demo payment starts a story. Try scanning the sample QR.', 'empty-state'); td.colSpan = 5; rows.append(tr); return; }
   for (const t of state.transactions) {
     const tr = document.createElement('tr'); const name = cell(tr, D.recipients[t.recipient].name, 'tx-name'); const sub = document.createElement('small'); sub.textContent = t.id; name.append(sub);
