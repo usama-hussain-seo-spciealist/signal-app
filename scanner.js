@@ -36,9 +36,13 @@
           track.addEventListener('mute', () => { if (token === generation) status('Camera feed paused. Return to this app or restart the camera.'); });
           track.addEventListener('unmute', () => { if (token === generation) status('Camera resumed. Hold the whole QR inside the frame.'); });
         }
-        await video.play();
-        if (generation !== token) return;
-        status('Camera ready. Hold the whole QR steady with a white border and good light.');
+        // Safari may leave play() pending while a new stream has no decoded frame.
+        // Keep polling frames instead of hanging at the permission message forever.
+        const playback = video.play();
+        if (playback && playback.catch) playback.catch(error => {
+          if (generation === token) { stop(); status(cameraError(error)); }
+        });
+        status('Camera connected. Waiting for video frames; hold the whole QR steady.');
         function scan() {
           if (generation !== token || !stream) return;
           frames++;
@@ -51,6 +55,7 @@
               if (raw !== null) { stop(); result(raw, 'Camera'); return; }
             }
             if (frames === 60) status(video.readyState < 2 ? 'Camera opened but no video frames arrived. Stop and restart the camera, or upload the QR image.' : 'No readable QR yet. Move back to include all four corners, improve light, or upload the image. Camera is still scanning.');
+            if (frames >= 100 && video.readyState < 2) { stop(); status('Camera connected but supplied no video frames. Tap Start camera to retry, or upload a QR image.'); return; }
           } catch (_) {
             failures++;
             if (failures >= 5) { stop(); status('Camera frames could not be decoded. Restart the camera or upload the QR image. Your last result is kept below.'); return; }

@@ -1,7 +1,7 @@
 'use strict';
-const CACHE = 'signalpay-demo-shell-v3.0.0';
+const CACHE = 'signalpay-demo-shell-v3.0.1';
 const base = new URL('./', self.location.href);
-const assets = ['./', './index.html', './install.html', './android-release.json', './manifest.webmanifest', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png', './styles.css?v=3.0.0', './install.css?v=3.0.0', './install.js?v=3.0.0', './test-qrs/simple.png', './test-qrs/payment-100.png', './scanner.js?v=3.0.0', './app.js?v=3.0.0', './core.js?v=3.0.0', './account-core.js?v=3.0.0', './account-store.js?v=3.0.0', './auth-crypto.js?v=3.0.0', './auth-store.js?v=3.0.0', './session.js?v=3.0.0', './jsQR.js?v=3.0.0', './qrcode.js?v=3.0.0'].map(path => new URL(path, base).href);
+const assets = ['./', './index.html', './install.html', './android-release.json', './manifest.webmanifest', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png', './styles.css?v=3.0.1', './install.css?v=3.0.1', './install.js?v=3.0.1', './test-qrs/simple.png', './test-qrs/payment-100.png', './scanner.js?v=3.0.1', './app.js?v=3.0.1', './core.js?v=3.0.1', './account-core.js?v=3.0.1', './account-store.js?v=3.0.1', './auth-crypto.js?v=3.0.1', './auth-store.js?v=3.0.1', './session.js?v=3.0.1', './jsQR.js?v=3.0.1', './qrcode.js?v=3.0.1'].map(path => new URL(path, base).href);
 const paths = new Set(assets.map(path => new URL(path).pathname));
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(assets.map(url => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));
