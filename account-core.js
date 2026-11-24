@@ -36,8 +36,8 @@
     try{const key=await subtle().importKey('raw',unb64(signer.k),{name:'ECDSA',namedCurve:'P-256'},false,['verify']);if(sig.length!==64||!await subtle().verify({name:'ECDSA',hash:'SHA-256'},key,sig,bytes))fail('signature');}catch(_){fail('QR signature verification failed. Data may have been changed. No balance was updated.');}
     return freeze({body:b,raw,hash:await digest(raw)});
   }
-  async function createWallet(displayName){
-    const keys=await subtle().generateKey({name:'ECDSA',namedCurve:'P-256'},false,['sign','verify']);
+  async function createWallet(displayName,exportForVault=false){
+    const keys=await subtle().generateKey({name:'ECDSA',namedCurve:'P-256'},exportForVault,['sign','verify']);
     const k=b64(await subtle().exportKey('raw',keys.publicKey)),aid=await accountId(k);
     const account={id:aid,n:name(displayName||'SignalPay '+aid.slice(-4).toUpperCase()),a:'signalpay:'+aid,k};
     return {version:2,account,privateKey:keys.privateKey,accountQR:await sign({v:2,t:'account',account},keys.privateKey),balance:2500000,transactions:[],createdAt:new Date().toISOString()};
@@ -85,14 +85,15 @@
     const body={v:2,t:'receipt',id:b.id,from:b.from.id,to:w.account.id,c:b.c,u:'PKR',m:b.m,at:new Date().toISOString(),h:offer.hash,decision,by:w.account};
     return freeze({offer,receipt:await verify(await sign(body,w.privateKey))});
   }
-  function addIncoming(w,prepared){
+  function addIncoming(w,prepared,resolvedPeer=prepared.offer.body.from){
     const {offer,receipt}=prepared,b=offer.body,r=receipt.body;
     if(b.to!==w.account.id||!sameAccount(r.by,w.account)||r.h!==offer.hash||r.id!==b.id)fail('Receipt does not match this account and transfer.');
     const old=w.transactions.find(t=>t.id===b.id);
     if(old){if(old.direction==='in'&&old.offerHash===offer.hash&&old.decision===r.decision)return w;fail('Duplicate transfer conflicts with the saved decision.');}
     capacity(w);const accepted=r.decision==='accepted';
     const balance=w.balance+(accepted?b.c:0);if(!Number.isSafeInteger(balance))fail('Demo balance limit reached.');
-    const record={id:b.id,direction:'in',peer:b.from,cents:b.c,mode:b.m,time:b.at,status:accepted?'Successful':'Failed',decision:r.decision,offerRaw:offer.raw,offerHash:offer.hash,receiptRaw:receipt.raw};
+    if(!sameAccount(resolvedPeer,b.from))fail('Trusted sender record does not match the signing key.');
+    const record={id:b.id,direction:'in',peer:resolvedPeer,cents:b.c,mode:b.m,time:b.at,status:accepted?'Successful':'Failed',decision:r.decision,offerRaw:offer.raw,offerHash:offer.hash,receiptRaw:receipt.raw};
     return {...w,balance,transactions:[record,...w.transactions]};
   }
   async function prepareReceipt(w,raw){

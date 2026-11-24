@@ -1,14 +1,16 @@
 console.log(`# SignalPay Demo for Android v${process.env.VERSION}
 
-Persistent personal demo accounts, signed account QR codes and manual offline device-to-device QR exchange. No real funds, banking, verified personal identities or SMS service.
+Local name/mobile registration, PIN login, separate encrypted profiles, personal QR codes, masked recipient review, Sent/Received receipts and PKR demo balances. Mobile numbers stay Unverified: no OTP, central account directory, shared login or cloud backend is configured. No real funds, banking settlement, identity certification or SMS service.
 
-Receiver shows their account QR. Sender scans, enters PKR amount and confirms: status is Pending and funds are reserved. Receiver scans the payment QR and accepts or rejects, then shows a signed receipt QR. Sender scans that receipt to verify the matching transaction and finalize Successful/debit or Failed/release. The receiver records credit at acceptance; sender stays Pending until receipt return. Repeated QR scans do not apply balances twice. Lost receipt can be reopened in receiver history.
+PIN-derived AES-256-GCM vaults use PBKDF2-HMAC-SHA256 (600,000 iterations); session keys/PINs are not persisted. Restart requires PIN. Logout clears private UI and locks same-account tabs; old unnamed v2 data is preserved separately and not silently assigned to a new registration. Clearing app data or losing the PIN can lose access; no recovery service exists.
 
-The QR channel works without Wi-Fi/mobile data after installation. There is no Bluetooth, background delivery, server ledger or reconnect synchronization. Online mode also uses manual QR exchange. Local demo storage can be tampered with, cloned, lost or restored; this is not trustworthy money or a double-spend-resistant financial system.
+QR names are resolved against local signed registration records or independently checked saved recipient records. An unknown cross-device account requires explicit contact confirmation, not blind trust in its QR label. Personal identity/phone ownership remains unverified.
 
-Android 8.0+. Account keys and ledger persist locally across restart; clearing data or uninstalling can remove them, with no recovery. The browser/PWA and APK are separate accounts. Only Internet and Camera permissions; QR file sharing opens Android's chooser using a restricted FileProvider.
+Offline delivery: receiver account QR → sender review/Confirm & Send creates Pending/reserved payment QR → receiver accepts/rejects and returns signed acknowledgement → sender verifies matching receipt to finalize balance/status. Both histories share the transaction ID. Duplicate scans/imports do not apply twice. Receiver credit occurs before sender receipt return; this is not atomic financial settlement.
 
-Build verifies signature and checksum, installs the release in an Android emulator, runs instrumented account/QR/payment/camera/soundbox tests, and requires successful cross-engine browser verification before publishing. Browser Android/iPhone profiles, synthetic camera video and emulators do not certify physical iPhone/Android camera scans, real radio toggles, iPhone installed-PWA cold launch, share destinations or audible speech.
+Reconnect retries the logged-in account's imported signed receipt inbox only. Receipt bundles can be shared/imported. There is no automatic cloud delivery/sync, Bluetooth transport or trusted global ledger; local state can be tampered with or cloned. Online Payment also uses manual QR exchange. First prepare the PWA online; APK files are bundled. Android 8.0+.
+
+Build gates include real crypto/QR tests, Adil/Usama browser-profile PKR 500 transfer tests in both directions online/offline, registration/login/isolation/persistence, reconnect idempotency and seven Android emulator checks. Physical phone cameras, radio toggles, iPhone installed-PWA cold launch, sharing destinations and audible speaker output remain unverified.
 
 Source: ${process.env.GITHUB_SHA}
 Build: https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}

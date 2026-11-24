@@ -74,7 +74,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setGeolocationEnabled(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/2.0.3");
+        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/3.0.0");
         WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
         webView.setWebViewClient(new WebViewClient() {
@@ -109,8 +109,10 @@ public class MainActivity extends Activity {
                 if (!isLocal(Uri.parse(view.getUrl()))) return false;
                 if (fileResult != null) fileResult.onReceiveValue(null);
                 fileResult = callback;
-                Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*");
-                pick.putExtra(Intent.EXTRA_MIME_TYPES, new String[] { "image/png", "image/jpeg", "image/webp" });
+                boolean json = false;
+                for (String accepted : params.getAcceptTypes()) if (accepted != null && accepted.contains("json")) json = true;
+                Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType(json ? "application/json" : "image/*");
+                pick.putExtra(Intent.EXTRA_MIME_TYPES, json ? new String[] { "application/json" } : new String[] { "image/png", "image/jpeg", "image/webp" });
                 try { startActivityForResult(pick, FILE_REQUEST); }
                 catch (ActivityNotFoundException ignored) { fileResult.onReceiveValue(null); fileResult = null; Toast.makeText(MainActivity.this, "No image picker available", Toast.LENGTH_SHORT).show(); }
                 return true;
@@ -128,18 +130,22 @@ public class MainActivity extends Activity {
                 if (!mainFrame || !isTrustedOrigin(source) || !isLocal(Uri.parse(view.getUrl()))) return;
                 try {
                     JSONObject data = new JSONObject(message.getData());
+                    if ("shareReceipts".equals(data.optString("action"))) {
+                        String json = data.optString("json");
+                        if (json.length() > 250000) return;
+                        JSONObject bundle = new JSONObject(json);
+                        if (bundle.length() != 3 || !"signalpay-receipts".equals(bundle.optString("format")) || bundle.optInt("v") != 1) return;
+                        org.json.JSONArray receipts = bundle.getJSONArray("receipts");
+                        if (receipts.length() > 500) return;
+                        for (int i = 0; i < receipts.length(); i++) if (!receipts.getString(i).startsWith("signalpay:2:") || receipts.getString(i).length() > 2600) return;
+                        shareFile("SignalPay-receipts.json", json.getBytes(java.nio.charset.StandardCharsets.UTF_8), "application/json");
+                        return;
+                    }
                     String png = data.optString("png");
                     if (!"share".equals(data.optString("action")) || !png.startsWith("data:image/png;base64,") || png.length() > 1500000) return;
                     byte[] bytes = Base64.decode(png.substring(22), Base64.DEFAULT);
                     if (bytes.length < 8 || bytes[0] != (byte) 137 || bytes[1] != 80 || bytes[2] != 78 || bytes[3] != 71) return;
-                    File dir = new File(getCacheDir(), "shared");
-                    if (!dir.exists() && !dir.mkdirs()) throw new java.io.IOException("No share cache");
-                    File image = new File(dir, "SignalPay-QR.png");
-                    try (FileOutputStream out = new FileOutputStream(image)) { out.write(bytes); }
-                    Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".files", image);
-                    Intent send = new Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    send.setClipData(ClipData.newRawUri("SignalPay demo QR", uri));
-                    startActivity(Intent.createChooser(send, "Share SignalPay QR"));
+                    shareFile("SignalPay-QR.png", bytes, "image/png");
                 } catch (Exception ignored) { Toast.makeText(this, "Sharing unavailable. Show the QR on this screen instead.", Toast.LENGTH_SHORT).show(); }
             });
             WebViewCompat.addWebMessageListener(webView, "SignalSoundbox", Collections.singleton(ORIGIN), (view, message, source, mainFrame, reply) -> {
@@ -159,6 +165,16 @@ public class MainActivity extends Activity {
     }
 
     static boolean isTrustedOrigin(Uri uri) { return uri != null && "https".equals(uri.getScheme()) && "appassets.androidplatform.net".equals(uri.getHost()) && uri.getPort() == -1 && uri.getUserInfo() == null; }
+    private void shareFile(String fixedName, byte[] bytes, String mime) throws java.io.IOException {
+        File dir = new File(getCacheDir(), "shared");
+        if (!dir.exists() && !dir.mkdirs()) throw new java.io.IOException("No share cache");
+        File image = new File(dir, fixedName);
+        try (FileOutputStream out = new FileOutputStream(image)) { out.write(bytes); }
+        Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".files", image);
+        Intent send = new Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        send.setClipData(ClipData.newRawUri("SignalPay public demo receipt", uri));
+        startActivity(Intent.createChooser(send, "Share SignalPay demo data"));
+    }
     static boolean isLocal(Uri uri) { return isTrustedOrigin(uri) && uri.getPath() != null && uri.getPath().startsWith("/assets/www/"); }
     static boolean isExternalAllowed(Uri uri) {
         return uri != null && "https".equals(uri.getScheme()) && uri.getPort() == -1
