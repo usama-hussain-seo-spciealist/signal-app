@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['*.js', '*.cjs', '*.html', '*.css', 'test-qrs/**', 'browser-tests/**', 'scripts/**', 'package*.json', '.github/workflows/qr-tests.yml']
+    paths: ['*.js', '*.cjs', '*.html', '*.css', 'test-qrs/**', 'browser-tests/**', 'scripts/**', 'android/**', 'package*.json', '.github/workflows/android-apk.yml', '.github/workflows/qr-tests.yml']
 permissions:
   contents: read
 jobs:
