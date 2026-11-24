@@ -1,5 +1,4 @@
 package com.signalpay.demo;
-
 import static org.junit.Assert.*;
 import android.Manifest;
 import android.net.Uri;
@@ -13,69 +12,18 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
 @RunWith(AndroidJUnit4.class)
 public class DemoWebViewTest {
-    @Rule public GrantPermissionRule cameraPermission = GrantPermissionRule.grant(Manifest.permission.CAMERA);
-    @Rule public ActivityScenarioRule<MainActivity> activity = new ActivityScenarioRule<>(MainActivity.class);
-
-    private String js(String script) throws Exception {
-        AtomicReference<String> result = new AtomicReference<>(); CountDownLatch done = new CountDownLatch(1);
-        activity.getScenario().onActivity(screen -> screen.getDemoWebView().evaluateJavascript(script, value -> { result.set(value); done.countDown(); }));
-        assertTrue("WebView JavaScript response timed out", done.await(10, TimeUnit.SECONDS)); return result.get();
-    }
-    private void until(String expression) throws Exception {
-        long end = System.currentTimeMillis() + 20000;
-        while (System.currentTimeMillis() < end) { if ("true".equals(js(expression))) return; Thread.sleep(150); }
-        fail("Condition not reached: " + expression + " actual=" + js(expression));
-    }
-    @Before public void freshDemo() throws Exception {
-        until("document.readyState==='complete' && !!document.getElementById('downloadQR').href && typeof SignalDemo!=='undefined'");
-        js("document.getElementById('reset').click();document.getElementById('confirmReset').click()");
-    }
-    @Test public void sampleQRPaymentAndSms() throws Exception {
-        js("document.getElementById('sampleScan').click()");
-        until("document.getElementById('decodedData').textContent==='signalpay-demo:v2:chai:PKR:100.00'");
-        js("document.getElementById('useScanned').click();document.getElementById('amount').value='250';document.getElementById('paymentForm').requestSubmit()");
-        until("document.getElementById('reviewDialog').open");
-        js("document.getElementById('confirmPayment').click()");
-        until("document.getElementById('balance').textContent==='PKR 24,750.00'");
-        assertEquals("true", js("document.getElementById('sms').textContent.includes('SIMULATION') && document.getElementById('sms').textContent.includes('NOT SENT')"));
-        assertEquals("true", js("document.querySelector('#activityRows').textContent.includes('Simulated')"));
-    }
-    @Test public void insufficientBalanceAndCancelLeaveWalletUnchanged() throws Exception {
-        js("document.getElementById('amount').value='99999'; document.getElementById('paymentForm').requestSubmit()");
-        assertEquals("true", js("!document.getElementById('reviewDialog').open && document.getElementById('toast').textContent.includes('Not enough')"));
-        js("document.getElementById('amount').value='500';document.getElementById('paymentForm').requestSubmit();document.getElementById('cancelPayment').click()");
-        assertEquals("true", js("document.getElementById('balance').textContent==='PKR 25,000.00' && document.getElementById('paymentCount').textContent==='0'"));
-    }
-    @Test public void nativeSoundboxAndMute() throws Exception {
-        assertEquals("true", js("!!window.SignalSoundbox"));
-        js("document.getElementById('testSound').click()");
-        AtomicReference<String> spoken = new AtomicReference<>("");
-        for (int i = 0; i < 60; i++) { activity.getScenario().onActivity(screen -> spoken.set(screen.lastSpeechText)); if (spoken.get().contains("500")) break; Thread.sleep(100); }
-        assertTrue(spoken.get(), spoken.get().contains("500") && spoken.get().contains("simulation"));
-        activity.getScenario().onActivity(screen -> screen.lastSpeechText = "");
-        js("document.getElementById('soundEnabled').checked=false;document.getElementById('testSound').click()");
-        activity.getScenario().onActivity(screen -> spoken.set(screen.lastSpeechText));
-        assertEquals("", spoken.get());
-        assertEquals("true", js("document.getElementById('soundStatus').textContent.includes('muted')"));
-    }
-    @Test public void cameraUsesEmulatedVideoAndStops() throws Exception {
-        js("document.getElementById('startCamera').click()");
-        until("!!document.getElementById('video').srcObject && document.getElementById('video').readyState>=2");
-        js("window.testCameraTrack=document.getElementById('video').srcObject.getVideoTracks()[0];document.getElementById('stopCamera').click()");
-        until("testCameraTrack.readyState==='ended' && document.getElementById('video').srcObject===null");
-    }
-    @Test public void untrustedOriginsAndRealQrAreRejected() throws Exception {
-        assertFalse(MainActivity.isLocal(Uri.parse("https://evil.example/assets/www/index.html")));
-        assertFalse(MainActivity.isExternalAllowed(Uri.parse("https://github.com/other/repo/releases/latest")));
-        assertFalse(MainActivity.isExternalAllowed(Uri.parse("http://github.com/usama-hussain-seo-spciealist/signal-app/releases/latest")));
-        assertEquals("true", js("(()=>{try{SignalDemo.parseQR('upi://pay?pa=real');return false}catch(e){return true}})()"));
-    }
-    @Test public void merchantReceiptNeverCreditsCustomerWallet() throws Exception {
-        js("document.getElementById('receive').click()");
-        assertEquals("true", js("document.getElementById('balance').textContent==='PKR 25,000.00' && document.getElementById('receivedTotal').textContent==='PKR 500.00'"));
-        assertEquals("true", js("document.getElementById('sms').textContent.includes('NOT SENT')"));
-    }
+ @Rule public GrantPermissionRule permission=GrantPermissionRule.grant(Manifest.permission.CAMERA);
+ @Rule public ActivityScenarioRule<MainActivity> activity=new ActivityScenarioRule<>(MainActivity.class);
+ private String js(String script)throws Exception{AtomicReference<String> result=new AtomicReference<>();CountDownLatch done=new CountDownLatch(1);activity.getScenario().onActivity(s->s.getDemoWebView().evaluateJavascript(script,v->{result.set(v);done.countDown();}));assertTrue(done.await(10,TimeUnit.SECONDS));return result.get();}
+ private void until(String expression)throws Exception{long end=System.currentTimeMillis()+30000;while(System.currentTimeMillis()<end){if("true".equals(js(expression)))return;Thread.sleep(150);}fail("Condition not reached: "+expression+" value="+js(expression)+" error="+js("document.getElementById('appError').textContent"));}
+ private void async(String expression)throws Exception{js("window.testDone=false;window.testError='';Promise.resolve().then(async()=>{"+expression+"}).then(()=>window.testDone=true).catch(e=>{window.testError=e.message;window.testDone=true})");until("window.testDone===true");assertEquals("\"\"",js("window.testError"));}
+ @Before public void ready()throws Exception{until("document.readyState==='complete'&&!document.getElementById('appContent').hidden");}
+ @Test public void accountPersistsAcrossPageRestart()throws Exception{String id=js("document.getElementById('accountId').textContent");String qr=js("document.querySelector('#accountQR img').src");js("location.reload()");ready();assertEquals(id,js("document.getElementById('accountId').textContent"));assertEquals(qr,js("document.querySelector('#accountQR img').src"));async("const w=await SignalAccountStore.openStore(indexedDB).read();if(w.privateKey.extractable)throw Error('Exportable private key');const renamed=await SignalAccounts.renameWallet(w,w.account.n);await SignalAccounts.verify(renamed.accountQR);");}
+ @Test public void realAccountPngDecodeAndPendingConfirmation()throws Exception{async("window.peer=await SignalAccounts.createWallet('Native test receiver');const image=makeQR(peer.accountQR,'test');await new Promise((resolve,reject)=>{if(image.complete){resolve();return;}image.onload=resolve;image.onerror=reject;});const canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;canvas.getContext('2d').drawImage(image,0,0);const raw=SignalScanner.decode(canvas,jsQR);if(raw!==peer.accountQR)throw Error('QR decode mismatch');view('send');await showDecoded(raw,'Native test PNG');");js("document.getElementById('amount').value='100';document.getElementById('paymentForm').requestSubmit()");until("document.getElementById('reviewDialog').open");js("document.getElementById('confirmPayment').click();document.getElementById('confirmPayment').click()");until("document.getElementById('transferStatus').textContent==='Pending'");assertEquals("true",js("document.getElementById('transferHelp').textContent.includes('no automatic delivery')||document.getElementById('transferHelp').textContent.includes('There is no automatic')"));async("const w=await SignalAccountStore.openStore(indexedDB).read();const records=w.transactions.filter(t=>t.peer.id===peer.account.id);if(records.length!==1||records[0].status!=='Pending')throw Error('Duplicate confirmation');");}
+ @Test public void signedOfflineDeliveryAndDuplicateProtection()throws Exception{async("const A=SignalAccounts;let s=await A.createWallet('Sender'),r=await A.createWallet('Receiver');s=A.addOutgoing(s,await A.prepareOffer(s,r.accountQR,10000,'offline'));if(s.balance!==2500000||A.available(s)!==2490000)throw Error('Pending reserve');const p=await A.prepareIncoming(r,s.transactions[0].offerRaw,'accepted');r=A.addIncoming(r,p);r=A.addIncoming(r,p);const receipt=await A.prepareReceipt(s,r.transactions[0].receiptRaw);s=A.finishOutgoing(s,receipt);s=A.finishOutgoing(s,receipt);if(s.balance!==2490000||r.balance!==2510000||s.transactions[0].id!==r.transactions[0].id)throw Error('Transfer mismatch');");}
+ @Test public void cameraStartsAndStops()throws Exception{js("document.getElementById('scanQR').click()");until("!!document.getElementById('video').srcObject&&document.getElementById('video').readyState>=2");js("window.testTrack=document.getElementById('video').srcObject.getVideoTracks()[0];document.getElementById('stopCamera').click()");until("testTrack.readyState==='ended'&&document.getElementById('video').srcObject===null");}
+ @Test public void nativeSoundboxAndMute()throws Exception{assertEquals("true",js("!!window.SignalSoundbox&&!!window.SignalQR"));activity.getScenario().onActivity(s->s.lastSpeechText="");js("document.getElementById('testSound').click()");AtomicReference<String> spoken=new AtomicReference<>("");for(int i=0;i<60;i++){activity.getScenario().onActivity(s->spoken.set(s.lastSpeechText));if(spoken.get().contains("500"))break;Thread.sleep(100);}assertTrue(spoken.get().contains("500")&&spoken.get().contains("simulation"));activity.getScenario().onActivity(s->s.lastSpeechText="");js("document.getElementById('soundEnabled').checked=false;document.getElementById('testSound').click()");activity.getScenario().onActivity(s->spoken.set(s.lastSpeechText));assertEquals("",spoken.get());}
+ @Test public void invalidQrAndUntrustedOriginsFailClosed()throws Exception{assertFalse(MainActivity.isLocal(Uri.parse("https://evil.example/assets/www/index.html")));assertFalse(MainActivity.isExternalAllowed(Uri.parse("https://github.com/other/repo/releases/latest")));async("let rejected=false;try{await SignalAccounts.verify('SIGNALPAY-TEST-123')}catch(e){rejected=true}if(!rejected)throw Error('Invalid QR accepted');");}
 }

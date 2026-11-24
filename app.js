@@ -1,160 +1,80 @@
-/* All records are fictional browser-local state. No payment or SMS API exists. */
+/* Demo account wallet: signed optical QR exchange; no real funds or bank API. */
 'use strict';
-const $ = id => document.getElementById(id);
-const D = window.SignalDemo;
-const storageKey = 'signalpay-demo-v1';
-let state = D.initial(), storageAvailable = true, pending = null, toastTimer, audioContext;
-try { const saved = JSON.parse(localStorage.getItem(storageKey)); if (D.validState(saved)) state = saved; } catch (_) { storageAvailable = false; }
-const money = cents => 'PKR ' + (cents / 100).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 6500); }
-function persist() { try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (_) { storageAvailable = false; toast('Simulation complete. Browser storage is unavailable; activity lasts until you reload.'); } }
-function cell(row, text, className) { const td = document.createElement('td'); td.textContent = text; if (className) td.className = className; row.append(td); return td; }
-function render() {
-  $('balance').textContent = money(state.balance);
-  $('paymentCount').textContent = state.transactions.filter(t => t.kind === 'payment').length;
-  $('receivedTotal').textContent = money(state.transactions.filter(t => t.kind === 'sale' || D.recipients[t.recipient].type === 'merchant').reduce((sum, t) => sum + t.cents, 0));
-  const rows = $('activityRows'); rows.textContent = '';
-  if (!state.transactions.length) { const tr = document.createElement('tr'); const td = cell(tr, 'Your first demo payment starts a story. Try scanning the sample QR.', 'empty-state'); td.colSpan = 5; rows.append(tr); return; }
-  for (const t of state.transactions) {
-    const tr = document.createElement('tr'); const name = cell(tr, D.recipients[t.recipient].name, 'tx-name'); const sub = document.createElement('small'); sub.textContent = t.id; name.append(sub);
-    cell(tr, t.kind === 'sale' ? 'Incoming sale' : 'Demo payment'); cell(tr, (t.kind === 'sale' ? '+ ' : '− ') + money(t.cents), t.kind === 'sale' ? 'received' : '');
-    const status = cell(tr, ''); const badge = document.createElement('span'); badge.className = 'tx-status'; badge.textContent = 'Simulated'; status.append(badge);
-    cell(tr, new Date(t.time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })); rows.append(tr);
-  }
+const $=id=>document.getElementById(id), A=window.SignalAccounts;
+let store,wallet,mode='offline',receiver=null,incoming=null,review=null,activeTransfer=null,busy=false,imageToken=0,toastTimer,audioContext;
+let notifications=null;try{if('BroadcastChannel' in window)notifications=new BroadcastChannel('signalpay-account-updates');}catch(_){}
+const money=c=>'PKR '+(c/100).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2});
+const initials=name=>name.trim().split(/\s+/).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,7500);}
+function error(message){$('appError').textContent=message;$('appError').hidden=false;}
+function clearError(){$('appError').hidden=true;}
+function makeQR(raw,label){const code=qrcode(0,'M');code.addData(raw);code.make();const count=code.getModuleCount(),scale=8,margin=4,canvas=document.createElement('canvas');canvas.width=canvas.height=(count+margin*2)*scale;const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#000';for(let r=0;r<count;r++)for(let c=0;c<count;c++)if(code.isDark(r,c))ctx.fillRect((c+margin)*scale,(r+margin)*scale,scale,scale);const image=new Image();image.src=canvas.toDataURL('image/png');image.alt=label;return image;}
+function putQR(id,raw,label){const box=$(id);box.textContent='';box.append(makeQR(raw,label));}
+function view(name){stopCamera();document.querySelectorAll('.screen').forEach(el=>el.hidden=el.id!=='screen-'+name);['navHome','navScan','navReceive','navActivity'].forEach(id=>$(id).removeAttribute('aria-current'));$(name==='receive'?'navReceive':name==='send'?'navScan':'navHome').setAttribute('aria-current','page');}
+function showMode(next){mode=next;$('modeOffline').setAttribute('aria-pressed',String(mode==='offline'));$('modeOnline').setAttribute('aria-pressed',String(mode==='online'));$('modeHelp').textContent=mode==='offline'?'Offline · signed QR exchange between two devices. No Wi-Fi, mobile data, Bluetooth or server required after offline files are ready.':'Online · no payment server is connected. Delivery still uses the same manual signed QR exchange; reconnecting does not send pending transfers.';}
+function openScan(auto=true){if(!wallet)return;view('send');clearError();if(auto)camera.start();}
+function render(){
+  if(!wallet)return;
+  $('greeting').textContent='Hello, '+wallet.account.n+'.';$('avatar').textContent=initials(wallet.account.n);$('receiveAvatar').textContent=initials(wallet.account.n);
+  const available=A.available(wallet),held=wallet.balance-available;$('balance').textContent=money(available);$('heldBalance').textContent=held?money(held)+' reserved · awaiting receipt':'No pending reservations';$('ledgerBalance').textContent='Recorded demo balance '+money(wallet.balance);
+  $('accountName').textContent=wallet.account.n;$('accountId').textContent=wallet.account.id;$('accountIdentifier').textContent=wallet.account.a;$('displayName').value=wallet.account.n;
+  // The QR packet is persisted with the account; repaint only when its public details change.
+  if($('accountQR').dataset.packet!==wallet.accountQR){putQR('accountQR',wallet.accountQR,'Your SignalPay account QR');$('accountQR').dataset.packet=wallet.accountQR;}
+  const rows=$('activityRows');rows.textContent='';$('transactionCount').textContent=wallet.transactions.length+' transfer'+(wallet.transactions.length===1?'':'s');
+  if(!wallet.transactions.length){const p=document.createElement('p');p.className='activity-empty';p.textContent='Your first transfer starts here. Scan a receiver’s account QR or open Receive.';rows.append(p);}
+  for(const t of wallet.transactions){const row=document.createElement('button');row.type='button';row.className='activity-row';row.dataset.transaction=t.id;const icon=document.createElement('span');icon.className='tx-icon';icon.textContent=t.direction==='in'?'↓':'↗';const copy=document.createElement('span');copy.className='tx-copy';const title=document.createElement('strong');title.textContent=(t.direction==='in'?'From ':'To ')+t.peer.n;const sub=document.createElement('small');sub.textContent=t.id+' · '+t.mode;copy.append(title,sub);const right=document.createElement('span');right.className='tx-right';const amount=document.createElement('b');amount.textContent=(t.direction==='in'?'+ ':'− ')+money(t.cents);const status=document.createElement('span');status.className='status-badge '+t.status.toLowerCase();status.textContent=t.status;right.append(amount,status);row.append(icon,copy,right);row.addEventListener('click',()=>showTransfer(t.id));rows.append(row);}
 }
-function makeQR() {
-  const qr = qrcode(0, 'M'); qr.addData('signalpay-demo:v2:chai:PKR:100.00'); qr.make();
-  $('merchantQR').innerHTML = qr.createSvgTag({ cellSize: 5, margin: 20, scalable: true });
-  $('downloadQR').href = sampleCanvas(qr).toDataURL('image/png');
-  return qr;
+async function refresh(){if(!store)return;const next=await store.read();if(!A.validWallet(next))throw new Error('Saved account is unreadable. No replacement account was created.');wallet=next;render();}
+async function save(change){wallet=await store.update(current=>{if(!A.validWallet(current))throw new Error('Account storage changed or is unavailable. No payment was saved.');return change(current);});render();if(notifications)notifications.postMessage('changed');}
+async function guarded(fn){if(busy)return;busy=true;clearError();document.querySelectorAll('#confirmPayment,#acceptIncoming,#rejectIncoming').forEach(b=>b.disabled=true);try{await fn();}catch(e){error(e.message||'Operation failed. No unverified success has been recorded.');toast(e.message||'Operation failed.');}finally{busy=false;document.querySelectorAll('#confirmPayment,#acceptIncoming,#rejectIncoming').forEach(b=>b.disabled=false);}}
+function showTransfer(id){const t=wallet.transactions.find(t=>t.id===id);if(!t)return;activeTransfer=t.id;view('transfer');$('transferStatus').textContent=t.status;$('transferStatus').className='status-badge '+t.status.toLowerCase();$('transferTitle').textContent=t.status==='Pending'?'Awaiting receiver receipt':t.status==='Failed'?'Payment rejected':'Demo receipt verified';$('transferAmount').textContent=money(t.cents);$('transferPeer').textContent=(t.direction==='in'?'From ':'To ')+t.peer.n;$('transferPeerId').textContent=t.peer.id;$('transferId').textContent=t.id;$('transferMode').textContent=t.mode==='offline'?'Offline · signed QR exchange':'Online · manual QR exchange (no server)';$('scanReceipt').hidden=t.direction!=='out'||t.status!=='Pending';
+  $('transferHelp').textContent=t.direction==='out'&&t.status==='Pending'?'Pending: show this payment QR to the receiver. They must scan, review and accept or reject it, then show their receipt QR back to you. Your funds remain reserved until you scan that receipt. There is no automatic delivery or cancellation.':t.direction==='in'?'Show this signed receipt QR to the sender. Your decision is saved on this device; the sender stays Pending until they scan it. Reopening or rescanning this transaction does not credit it again.':'Receiver receipt verified against the account key, amount and transaction ID. This is a demo ledger update, not banking settlement.';
+  putQR('transferQR',t.direction==='out'&&t.status==='Pending'?t.offerRaw:t.receiptRaw,'Signed '+(t.status==='Pending'?'payment':'receipt')+' QR');$('receiptMessage').textContent=t.status==='Successful'?'Successful · demo only. No real funds or SMS moved.':t.status==='Failed'?'Failed · receiver rejected this demo payment. No balance was transferred.':'Pending · no receiver receipt verified yet.';
 }
-const sampleQR = makeQR();
-function sampleCanvas(qr) {
-  const size = qr.getModuleCount(), scale = 8, margin = 4;
-  const canvas = document.createElement('canvas'); canvas.width = canvas.height = (size + margin * 2) * scale;
-  const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#000';
-  for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (qr.isDark(r, c)) ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
-  return canvas;
+function clearDraft(){receiver=null;incoming=null;review=null;$('paymentForm').hidden=true;$('incomingReview').hidden=true;}
+async function showDecoded(raw,source){
+  const token=++imageToken;clearDraft();$('decodedResult').hidden=false;$('decodedResult').classList.remove('invalid');$('decodedSource').textContent='QR decoded · '+source;$('decodedData').textContent=raw;$('decodedMeaning').textContent='Checking SignalPay format and signature…';$('scanStatus').textContent='Exact QR data read. Camera stopped intentionally; verifying the packet.';
+  try{
+    const packet=await A.verify(raw);if(token!==imageToken)return;await refresh();if(token!==imageToken)return;
+    const b=packet.body;
+    if(b.t==='account'){
+      if(b.account.id===wallet.account.id)throw new Error('This is your own account QR. Scan a different receiver. No payment was created.');
+      receiver={packet,account:b.account};$('receiverName').textContent=b.account.n;$('receiverId').textContent=b.account.id;$('receiverAvatar').textContent=initials(b.account.n);$('paymentForm').hidden=false;$('decodedMeaning').textContent='Receiver account key signature checked. Enter a demo amount below. Personal identity is not verified.';
+    }else if(b.t==='offer'){
+      if(b.to!==wallet.account.id)throw new Error('This payment QR is for a different receiver account. No balance changed.');
+      const old=wallet.transactions.find(t=>t.id===b.id);
+      if(old){if(old.direction!=='in'||old.offerHash!==packet.hash)throw new Error('Duplicate transaction ID conflicts with saved details.');showTransfer(old.id);toast('Already processed. Showing the saved receipt; no second balance update.');return;}
+      incoming=packet;$('incomingReview').hidden=false;$('incomingName').textContent=b.from.n;$('incomingSenderId').textContent=b.from.id;$('incomingAmount').textContent=money(b.c);$('incomingId').textContent=b.id;$('incomingMode').textContent=(b.m==='offline'?'Offline':'Online')+' · signed QR exchange';$('decodedMeaning').textContent='Payment QR signature checked. Review the sender and amount, then Accept or Reject. Nothing credited yet.';
+    }else{
+      const receipt=await A.prepareReceipt(wallet,raw);if(token!==imageToken)return;await save(current=>A.finishOutgoing(current,receipt));showTransfer(b.id);toast(b.decision==='accepted'?'Receiver receipt verified. Demo payment Successful.':'Receiver rejected the demo payment. Reserved funds released.');return;
+    }
+    $('scanStatus').textContent='QR data and key signature checked. Review the details below.';
+  }catch(e){if(token===imageToken){$('decodedResult').classList.add('invalid');$('decodedMeaning').textContent=e.message;$('scanStatus').textContent='QR decoded, but payment validation failed. No new payment or balance update.';}}
 }
-let scannedPayment = null, imageGeneration = 0;
-const resultKey = 'signalpay-last-qr-v1';
-function showDecoded(raw, source, restored = false) {
-  $('decodedResult').hidden = false;
-  $('decodedData').textContent = raw;
-  $('decodedSource').textContent = (restored ? 'Saved result · ' : 'Decoded successfully · ') + source;
-  $('scanStatus').textContent = 'QR decoded successfully. Camera stopped intentionally; exact data is kept below.';
-  scannedPayment = null;
-  try {
-    scannedPayment = D.parsePaymentQR(raw);
-    $('decodedMeaning').textContent = 'Demo receiver ID: ' + scannedPayment.recipient + ' · ' + D.recipients[scannedPayment.recipient].name + (scannedPayment.cents === null ? ' · Choose an amount below.' : ' · ' + money(scannedPayment.cents)) + '. Fictional identity, not verified. No payment has been made.';
-  } catch (_) { $('decodedMeaning').textContent = 'Text QR decoded successfully. It is not a supported demo payment code. No payment was created and no link was opened.'; }
-  $('useScanned').hidden = !scannedPayment;
-  if (!restored) try { localStorage.setItem(resultKey, JSON.stringify({ raw, source })); } catch (_) {}
+const camera=SignalScanner.createCamera({video:$('video'),canvas:document.createElement('canvas'),media:navigator.mediaDevices,decoder:jsQR,status:message=>$('scanStatus').textContent=message,preview:active=>{$('video').hidden=!active;$('scanPlaceholder').hidden=active;$('stopCamera').hidden=!active;$('startCamera').disabled=active;},result:(raw,source)=>{showDecoded(raw,source).catch(e=>error(e.message));}});
+function stopCamera(){imageToken++;camera.stop();}
+$('startCamera').addEventListener('click',()=>{imageToken++;camera.start();});$('stopCamera').addEventListener('click',()=>{stopCamera();$('scanStatus').textContent='Camera stopped. Last decoded data is kept below.';});
+async function decodeImage(file){stopCamera();const token=imageToken,url=URL.createObjectURL(file),image=new Image();$('scanStatus').textContent='Reading QR image on this device…';try{await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error('Image could not open. Choose a PNG, JPG or WebP QR image.'));image.src=url;});if(token!==imageToken)return;const ratio=Math.min(1,2000/Math.max(image.naturalWidth,image.naturalHeight)),canvas=document.createElement('canvas');canvas.width=Math.round(image.naturalWidth*ratio);canvas.height=Math.round(image.naturalHeight*ratio);const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);const raw=SignalScanner.decode(canvas,jsQR);if(raw===null)throw new Error('No readable QR found. Include all four corners and its white border; use a sharp, well-lit image.');await showDecoded(raw,'Uploaded image');}catch(e){if(token===imageToken)$('scanStatus').textContent=e.message;}finally{URL.revokeObjectURL(url);}}
+$('qrFile').addEventListener('change',e=>{const file=e.target.files[0];e.target.value='';if(!file)return;if(file.size>10000000){$('scanStatus').textContent='Choose a QR image smaller than 10 MB.';return;}decodeImage(file);});
+$('paymentForm').addEventListener('submit',e=>{e.preventDefault();guarded(async()=>{if(!receiver)throw new Error('Scan a receiver account QR first.');await refresh();const value=A.amount($('amount').value);if(value>A.available(wallet))throw new Error('Insufficient available demo balance. Pending transfers reserve their amount.');review={receiverQR:receiver.packet.raw,account:receiver.account,cents:value,mode,id:A.id()};$('reviewRecipient').textContent=review.account.n;$('reviewAccountId').textContent=review.account.id;$('reviewAmount').textContent=money(value);$('reviewMode').textContent=mode==='offline'?'Offline · signed QR exchange':'Online · manual QR exchange (no payment server)';$('reviewDialog').showModal();});});
+$('cancelPayment').addEventListener('click',()=>{review=null;$('reviewDialog').close();});$('reviewDialog').addEventListener('cancel',()=>review=null);
+$('confirmPayment').addEventListener('click',()=>guarded(async()=>{if(!review)return;const draft=review;await refresh();const prepared=await A.prepareOffer(wallet,draft.receiverQR,draft.cents,draft.mode,draft.id);await save(current=>A.addOutgoing(current,prepared));review=null;$('reviewDialog').close();clearDraft();showTransfer(draft.id);toast('Pending. Show your payment QR to the receiver; no receipt verified yet.');}));
+async function decide(decision){await guarded(async()=>{if(!incoming)throw new Error('Scan an incoming payment QR first.');const packet=incoming;await refresh();const prepared=await A.prepareIncoming(wallet,packet.raw,decision);const prior=wallet.transactions.some(t=>t.id===packet.body.id);await save(current=>A.addIncoming(current,prepared));incoming=null;showTransfer(packet.body.id);if(decision==='accepted'&&!prior)announce(packet.body.c);toast(decision==='accepted'?'Demo credit recorded once. Show this receipt to the sender.':'Rejected. Show the signed rejection receipt to the sender.');});}
+$('acceptIncoming').addEventListener('click',()=>decide('accepted'));$('rejectIncoming').addEventListener('click',()=>decide('rejected'));
+$('nameForm').addEventListener('submit',e=>{e.preventDefault();const value=$('displayName').value.trim();guarded(async()=>{await refresh();const renamed=await A.renameWallet(wallet,value);await save(current=>{if(current.account.id!==renamed.account.id)throw new Error('Account changed. Reopen Receive.');return {...current,account:renamed.account,accountQR:renamed.accountQR};});toast('Name saved. Your account ID is unchanged.');});});
+$('copyAccount').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(wallet.account.id);toast('Account ID copied.');}catch(_){toast('Copy is unavailable. Select and copy the account ID shown above.');}});
+async function shareQR(box,label){try{const image=$(box).querySelector('img');if(!image)throw new Error('QR is not ready.');if(window.SignalQR){window.SignalQR.postMessage(JSON.stringify({action:'share',png:image.src}));return;}const blob=await(await fetch(image.src)).blob(),file=new File([blob],'SignalPay-'+label+'.png',{type:'image/png'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({title:'SignalPay demo '+label,files:[file]});}else{const link=document.createElement('a');link.href=image.src;link.download='SignalPay-'+label+'.png';document.body.append(link);link.click();link.remove();toast('QR image downloaded. It contains public demo details only.');}}catch(e){if(e.name!=='AbortError')toast('Sharing is unavailable. Show the QR on this screen or take a screenshot.');}}
+$('shareAccount').addEventListener('click',()=>shareQR('accountQR','account'));$('shareTransfer').addEventListener('click',()=>shareQR('transferQR','transaction'));
+$('enlargeQR').addEventListener('click',()=>{$('largeQR').textContent='';$('largeQR').append($('transferQR').querySelector('img').cloneNode());$('qrDialog').showModal();});$('closeLargeQR').addEventListener('click',()=>$('qrDialog').close());
+['scanQR','navScan'].forEach(id=>$(id).addEventListener('click',()=>{clearDraft();openScan(true);}));['receive','navReceive'].forEach(id=>$(id).addEventListener('click',()=>{if(wallet){view('receive');render();}}));
+$('payOffline').addEventListener('click',()=>{showMode('offline');openScan(true);});$('payOnline').addEventListener('click',()=>{showMode('online');openScan(true);});$('modeOffline').addEventListener('click',()=>showMode('offline'));$('modeOnline').addEventListener('click',()=>showMode('online'));
+['scanIncoming','scanReceipt'].forEach(id=>$(id).addEventListener('click',()=>{clearDraft();openScan(true);}));['navHome','backDashboard','doneTransfer'].forEach(id=>$(id).addEventListener('click',()=>{if(wallet)view('dashboard');}));$('navActivity').addEventListener('click',()=>{if(wallet){view('dashboard');$('activityRows').scrollIntoView({block:'start'});}});
+$('showGuide').addEventListener('click',()=>$('guideDialog').showModal());$('closeGuide').addEventListener('click',()=>$('guideDialog').close());document.querySelectorAll('[data-amount]').forEach(b=>b.addEventListener('click',()=>$('amount').value=b.dataset.amount));
+function prepareAudio(){try{if(!audioContext)audioContext=new(window.AudioContext||window.webkitAudioContext)();audioContext.resume().catch(()=>{});}catch(_){}}
+function announce(cents){if(!$('soundEnabled').checked){$('soundStatus').textContent='Sound muted. The signed demo receipt remains available.';return;}prepareAudio();try{if(audioContext){const start=audioContext.currentTime;[660,880,1100].forEach((frequency,i)=>{const o=audioContext.createOscillator(),g=audioContext.createGain();o.frequency.value=frequency;g.gain.setValueAtTime(.0001,start+i*.12);g.gain.exponentialRampToValueAtTime(.09,start+i*.12+.02);g.gain.exponentialRampToValueAtTime(.0001,start+i*.12+.2);o.connect(g);g.connect(audioContext.destination);o.start(start+i*.12);o.stop(start+i*.12+.22);});}}catch(_){}
+  if(window.SignalSoundbox){window.SignalSoundbox.onmessage=e=>$('soundStatus').textContent=e.data;window.SignalSoundbox.postMessage(JSON.stringify({action:'speak',cents}));}else if('speechSynthesis'in window){speechSynthesis.cancel();const speech=new SpeechSynthesisUtterance('Demo payment received. '+cents/100+' Pakistani rupees. This is a simulation.');speech.lang='en-PK';speech.onerror=()=>$('soundStatus').textContent='Voice unavailable. Demo receipt: '+money(cents)+'.';speechSynthesis.speak(speech);}$('soundStatus').textContent='Soundbox demo announcement requested: '+money(cents)+'. Speaker and voice depend on the device.';
 }
-const camera = SignalScanner.createCamera({
-  video: $('video'), canvas: document.createElement('canvas'), media: navigator.mediaDevices, decoder: jsQR,
-  status: message => $('scanStatus').textContent = message,
-  preview: active => { $('video').hidden = !active; $('scanPlaceholder').hidden = active; $('stopCamera').hidden = !active; $('startCamera').disabled = active; },
-  result: showDecoded
-});
-function stopCamera() { imageGeneration++; camera.stop(); }
-$('startCamera').addEventListener('click', () => { imageGeneration++; camera.start(); });
-$('stopCamera').addEventListener('click', () => { stopCamera(); $('scanStatus').textContent = 'Camera stopped. Last decoded result remains below. Start again or upload a QR image.'; });
-$('sampleScan').addEventListener('click', () => {
-  stopCamera();
-  try { const raw = SignalScanner.decode(sampleCanvas(sampleQR), jsQR); if (raw === null) throw new Error('Sample QR could not be decoded. Reload the updated app.'); showDecoded(raw, 'Generated demo QR'); }
-  catch (error) { $('scanStatus').textContent = error.message; }
-});
-$('useScanned').addEventListener('click', () => {
-  if (!scannedPayment) return;
-  $('recipient').value = scannedPayment.recipient;
-  if (scannedPayment.cents !== null) $('amount').value = (scannedPayment.cents / 100).toFixed(2);
-  $('scanStatus').textContent = 'Demo details copied below. Review and confirm separately. This does not deliver a payment to another device.';
-});
-$('clearDecoded').addEventListener('click', () => { scannedPayment = null; $('decodedResult').hidden = true; $('decodedData').textContent = ''; try { localStorage.removeItem(resultKey); } catch (_) {} });
-async function decodeImage(blob, source) {
-  stopCamera(); const token = imageGeneration;
-  const url = URL.createObjectURL(blob), image = new Image();
-  $('scanStatus').textContent = 'Reading QR image on this device…';
-  try {
-    await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error('Image could not open. Choose a PNG, JPG or WebP image.')); image.src = url; });
-    if (token !== imageGeneration) return;
-    const ratio = Math.min(1, 1800 / Math.max(image.naturalWidth, image.naturalHeight));
-    const canvas = document.createElement('canvas'); canvas.width = Math.round(image.naturalWidth * ratio); canvas.height = Math.round(image.naturalHeight * ratio);
-    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const raw = SignalScanner.decode(canvas, jsQR);
-    if (raw === null) throw new Error('No readable QR found. Include the full square and white border; use a sharp, well-lit image. Your previous result is kept.');
-    showDecoded(raw, source);
-  } catch (error) { if (token === imageGeneration) $('scanStatus').textContent = error.message; }
-  finally { URL.revokeObjectURL(url); }
-}
-$('qrFile').addEventListener('change', event => {
-  const file = event.target.files[0]; event.target.value = ''; if (!file) return;
-  if (file.size > 10000000) { $('scanStatus').textContent = 'Choose an image smaller than 10 MB.'; return; }
-  decodeImage(file, 'Uploaded image');
-});
-document.querySelectorAll('[data-test-qr]').forEach(button => button.addEventListener('click', async () => {
-  stopCamera(); const token = imageGeneration;
-  try { const response = await fetch('./test-qrs/' + button.dataset.testQr + '.png'); if (!response.ok) throw new Error(); const blob = await response.blob(); if (token === imageGeneration) await decodeImage(blob, 'Test PNG: ' + button.dataset.testQr); }
-  catch (_) { if (token === imageGeneration) $('scanStatus').textContent = 'Test image is not available. Open online once until Offline ready appears, then retry offline.'; }
-}));
-try { const saved = JSON.parse(localStorage.getItem(resultKey)); if (saved && typeof saved.raw === 'string' && saved.raw.length <= 10000) showDecoded(saved.raw, 'previous scan', true); } catch (_) {}
-function offlineStatus() {
-  const el = $('offlineStatus');
-  if (!('serviceWorker' in navigator) || location.hostname === 'appassets.androidplatform.net') { el.textContent = 'Version 1.3.0 · Bundled local demo. No device-to-device delivery or pending synchronization.'; return; }
-  el.textContent = 'Version 1.3.0 · Preparing offline files. Keep this app open online briefly.';
-  navigator.serviceWorker.ready.then(async () => {
-    const keys = await caches.keys();
-    if (!keys.includes('signalpay-demo-shell-v1.3.0')) { el.textContent = 'Version 1.3.0 · Offline update pending. Close and reopen while online.'; return; }
-    el.textContent = 'Version 1.3.0 · Offline ready on this browser. QR decoding needs no internet. Payments stay on this device; no delivery or sync.';
-  }).catch(() => { el.textContent = 'Version 1.3.0 · Offline files unavailable. Reopen online to cache them.'; });
-}
-offlineStatus();
-if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('controllerchange', offlineStatus);
-function chooseTab(scan) { stopCamera(); $('scanView').hidden = !scan; $('scanTab').setAttribute('aria-pressed', String(scan)); $('manualTab').setAttribute('aria-pressed', String(!scan)); }
-$('scanTab').addEventListener('click', () => chooseTab(true)); $('manualTab').addEventListener('click', () => chooseTab(false));
-document.querySelectorAll('[data-amount]').forEach(button => button.addEventListener('click', () => $('amount').value = button.dataset.amount));
-function prepareAudio() { try { if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)(); audioContext.resume().catch(() => {}); } catch (_) {} }
-function announce(cents) {
-  if (!$('soundEnabled').checked) { $('soundStatus').textContent = 'Sound muted. The simulated receipt is still shown.'; return; }
-  prepareAudio(); let played = false;
-  try { if (audioContext) { const start = audioContext.currentTime; [660, 880, 1100].forEach((frequency, i) => { const oscillator = audioContext.createOscillator(), gain = audioContext.createGain(); oscillator.frequency.value = frequency; gain.gain.setValueAtTime(.0001, start + i * .12); gain.gain.exponentialRampToValueAtTime(.09, start + i * .12 + .02); gain.gain.exponentialRampToValueAtTime(.0001, start + i * .12 + .2); oscillator.connect(gain); gain.connect(audioContext.destination); oscillator.start(start + i * .12); oscillator.stop(start + i * .12 + .22); }); played = true; } } catch (_) {}
-  if (window.SignalSoundbox) {
-    window.SignalSoundbox.onmessage = event => $('soundStatus').textContent = event.data;
-    window.SignalSoundbox.postMessage(JSON.stringify({ action: 'speak', cents })); played = true;
-  } else if ('speechSynthesis' in window) {
-    speechSynthesis.cancel(); const speech = new SpeechSynthesisUtterance('Demo payment received. ' + cents / 100 + ' Pakistani rupees. This is a simulation.'); speech.lang = 'en-PK'; speech.rate = .95;
-    speech.onerror = () => $('soundStatus').textContent = 'Voice is unavailable. The soundbox message is shown here: demo payment received, ' + money(cents) + '.';
-    speechSynthesis.speak(speech); played = true;
-  }
-  $('soundStatus').textContent = played ? 'Soundbox preview: Demo payment received, ' + money(cents) + '. Audio depends on device volume and browser voice support.' : 'Audio is unavailable. Demo payment received: ' + money(cents) + '.';
-}
-$('testSound').addEventListener('click', () => announce(50000));
-$('soundEnabled').addEventListener('change', () => { if (!$('soundEnabled').checked) { if ('speechSynthesis' in window) speechSynthesis.cancel(); window.SignalSoundbox?.postMessage(JSON.stringify({ action: 'stop' })); } $('soundStatus').textContent = $('soundEnabled').checked ? 'Sound on for the next simulated merchant receipt.' : 'Sound muted.'; });
-function finish(input) {
-  state = D.transact(state, input); persist(); render();
-  const recipient = D.recipients[input.recipient];
-  $('sms').textContent = '[SIMULATION — NOT SENT] ' + (input.kind === 'sale' ? 'Merchant demo: received ' : 'Demo wallet: paid ') + money(input.cents) + (input.kind === 'sale' ? ' at ' : ' to ') + recipient.name + '. Ref ' + input.id + '. No real transfer occurred.';
-  if (input.kind === 'sale' || recipient.type === 'merchant') announce(input.cents);
-  toast(storageAvailable ? 'Simulation recorded. No real money moved and no SMS was sent.' : 'Simulation recorded for this page session. Browser storage is unavailable.');
-}
-function transaction(recipient, kind, cents) { return { recipient, kind, cents, id: 'DEMO-' + (crypto.randomUUID ? crypto.randomUUID().slice(0, 8) : Date.now().toString(36) + Math.random().toString(36).slice(2, 6)).toUpperCase(), time: new Date().toISOString() }; }
-$('paymentForm').addEventListener('submit', event => {
-  event.preventDefault();
-  try { const cents = D.amountToCents($('amount').value); if (cents > state.balance) throw new Error('Not enough demo balance. Try a smaller amount or reset the demo.'); pending = transaction($('recipient').value, 'payment', cents); $('reviewRecipient').textContent = D.recipients[pending.recipient].name; $('reviewAmount').textContent = money(cents); $('reviewDialog').showModal(); }
-  catch (error) { toast(error.message); }
-});
-$('cancelPayment').addEventListener('click', () => { pending = null; $('reviewDialog').close(); });
-$('reviewDialog').addEventListener('cancel', () => pending = null);
-$('confirmPayment').addEventListener('click', () => {
-  if (!pending) return; const input = pending; pending = null; $('confirmPayment').disabled = true; prepareAudio();
-  try { finish(input); $('reviewDialog').close(); } catch (error) { toast(error.message); } finally { $('confirmPayment').disabled = false; }
-});
-$('receive').addEventListener('click', () => { prepareAudio(); try { finish(transaction('chai', 'sale', 50000)); } catch (error) { toast(error.message); } });
-$('reset').addEventListener('click', () => $('resetDialog').showModal()); $('cancelReset').addEventListener('click', () => $('resetDialog').close());
-$('confirmReset').addEventListener('click', () => { stopCamera(); $('clearDecoded').click(); pending = null; if ('speechSynthesis' in window) speechSynthesis.cancel(); state = D.initial(); persist(); render(); $('sms').textContent = 'Your simulated payment message will appear here. No phone number needed.'; $('scanStatus').textContent = 'Camera stays off until you start it. QR images are processed on your device.'; $('soundStatus').textContent = 'Audio plays on this device only.'; $('amount').value = '250'; $('recipient').value = 'chai'; $('resetDialog').close(); toast('Fresh demo ready. Sample balance restored.'); });
-document.addEventListener('visibilitychange', () => { if (document.hidden) { stopCamera(); if ('speechSynthesis' in window) speechSynthesis.cancel(); } });
-window.addEventListener('pagehide', stopCamera);
-window.addEventListener('storage', event => { if (event.key !== storageKey) return; try { const next = JSON.parse(event.newValue); state = D.validState(next) ? next : D.initial(); pending = null; $('reviewDialog').close(); render(); toast('Demo activity was updated in another tab.'); } catch (_) {} });
-render();
-if (!storageAvailable) toast('Browser storage is unavailable. The demo still works for this page session.');
+$('testSound').addEventListener('click',()=>announce(50000));$('soundEnabled').addEventListener('change',()=>{if(!$('soundEnabled').checked){if('speechSynthesis'in window)speechSynthesis.cancel();if(window.SignalSoundbox)window.SignalSoundbox.postMessage(JSON.stringify({action:'stop'}));}$('soundStatus').textContent=$('soundEnabled').checked?'Receipt soundbox enabled.':'Sound muted.';});
+async function offlineStatus(){const el=$('offlineStatus');if(location.hostname==='appassets.androidplatform.net'){el.textContent='Version 2.0.0 · Offline ready · Bundled Android files. Signed QR exchange requires both devices and a returned receipt.';return;}if(!('serviceWorker'in navigator)){el.textContent='Version 2.0.0 · Offline caching unavailable. Use a supported browser.';return;}try{await navigator.serviceWorker.ready;const keys=await caches.keys();el.textContent=keys.includes('signalpay-demo-shell-v2.0.0')?'Version 2.0.0 · Offline ready · QR exchange works without internet. No automatic reconnect synchronization.':'Version 2.0.0 · Offline update pending. Close and reopen while online.';}catch(_){el.textContent='Version 2.0.0 · Offline files unavailable. Open online to prepare them.';}}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){stopCamera();if('speechSynthesis'in window)speechSynthesis.cancel();}else refresh().catch(e=>error(e.message));});window.addEventListener('pagehide',stopCamera);window.addEventListener('focus',()=>refresh().catch(e=>error(e.message)));if(notifications)notifications.onmessage=()=>refresh().catch(e=>error(e.message));if('serviceWorker'in navigator)navigator.serviceWorker.addEventListener('controllerchange',offlineStatus);
+(async()=>{try{if(!crypto.subtle||!window.indexedDB)throw new Error('This browser cannot securely create and persist a demo account. Use current Safari/Chrome over HTTPS.');store=SignalAccountStore.openStore(indexedDB);let saved=await store.read();if(!saved){const candidate=await A.createWallet();saved=await store.update(existing=>existing||candidate);}if(!A.validWallet(saved))throw new Error('Saved account or signing key is unavailable. No new identity was silently created. Reopen the original browser profile.');await A.auditWallet(saved);const verified=await A.verify(saved.accountQR);if(verified.body.account.id!==saved.account.id||verified.body.account.k!==saved.account.k)throw new Error('Saved account QR does not match the account key.');wallet=saved;render();showMode('offline');$('appContent').hidden=false;$('loading').hidden=true;offlineStatus();}catch(e){$('loading').hidden=true;error(e.message||'Account initialization failed. No payment is available.');}})();

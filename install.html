@@ -6,7 +6,7 @@
   <meta name="description" content="Download the SignalPay Android demo APK, or add the web demo to your iPhone home screen. No real money moves.">
   <meta name="theme-color" content="#24215a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="SignalPay Demo">
   <link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-180.png"><link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./install.css?v=1.3.0"><script src="./install.js?v=1.3.0" defer></script>
+  <link rel="stylesheet" href="./install.css?v=2.0.0"><script src="./install.js?v=2.0.0" defer></script>
 </head>
 <body>
   <header><a href="./" class="wordmark">SignalPay<span>.</span></a><span class="badge">DEMO ONLY</span></header>
@@ -14,7 +14,7 @@
     <div class="app-icon"><img src="./icon-192.png" width="88" height="88" alt="SignalPay app icon"></div>
     <p class="eyebrow">TAKE THE DEMO WITH YOU</p>
     <h1>A little signal.<br>Right on your phone.</h1>
-    <p class="lede">Download the Android demo, or add it to your iPhone home screen. Try sample QR payments and soundbox audio.</p>
+    <p class="lede">Download the Android demo, or add it to your iPhone home screen. Create your own demo account and exchange signed payment and receipt QR codes. No real funds move.</p>
     <div class="actions"><a id="downloadAPK" class="download-apk" hidden>Download APK</a><button id="apkPending" type="button" disabled>APK being prepared</button><a href="./" class="open-link">Open demo</a></div>
     <p id="apkStatus" class="status" role="status">A download appears here only after the APK build and release are verified.</p>
     <p class="release-links" id="releaseLinks" hidden><a id="releaseDetails">Release &amp; checksum</a><a id="buildDetails">Verified build</a></p>
@@ -25,7 +25,7 @@
       <details id="androidHelp" open><summary>Android · Download APK</summary><ol><li><strong>Download APK</strong> tap karke file download karo.</li><li>Downloaded <strong>SignalPay-demo</strong> APK kholo aur Android ke install prompts review karke follow karo.</li><li><strong>SignalPay Demo</strong> open karo. QR scan ke liye <strong>Start camera</strong> tap karo aur camera permission do.</li></ol><p class="browser-note">Android 8.0 ya newer required. Browser aur Android settings ke mutabiq install confirmation aa sakti hai. Banking ya SMS permissions nahi mangi jati.</p></details>
       <details id="iphoneHelp"><summary>iPhone · Safari</summary><ol><li>Is link ko <strong>Safari</strong> mein kholo.</li><li><strong>Share</strong> kholo, phir <strong>Add to Home Screen</strong> select karo.</li><li><strong>Open as Web App</strong> option aaye to on rakho, phir <strong>Add</strong> tap karo.</li></ol></details>
       <p class="browser-note">WhatsApp ya kisi aur app ke andar link khula hai? Menu se Chrome / Safari mein open karo. iPhone par APK install nahi hoti; Safari ke Add to Home Screen steps use karo.</p>
-    </section>
+    <details><summary>Version 2.0 · Accounts and offline transfers</summary><ol><li>Install or update the Android APK. On iPhone, use Safari → Share → Add to Home Screen. Existing iPhone users: reopen online until Version 2.0.0 · Offline ready appears.</li><li>Open Receive to see your own account QR. Each browser/PWA or APK has its own persistent account. Use the same installation next time; clearing site data or uninstalling can remove the account and receipts. No recovery or cross-device login is connected.</li><li>Sender scans that account QR, enters a demo PKR amount and confirms. Status stays Pending and funds are reserved.</li><li>Receiver scans sender's payment QR, then accepts or rejects. Receiver shows the resulting receipt QR; sender scans it to finalize the matching transaction.</li><li>Both devices must prepare the app online once before a PWA offline cold launch. The Android APK bundles its files. QR generation, signing and decoding then need no internet. There is no Bluetooth transport or automatic reconnect sync. Online mode also uses manual QR exchange.</li></ol><p>Demo ledger only. Signed public details do not verify personal identity, real funds or banking settlement. Safeguards cannot prevent tampering, cloning or restoration of local app data.</p></details></section>
     <aside class="demo-note"><strong>A safe place to try the idea.</strong><p>All balances, recipients and payments are fictional. No actual money moves, no SMS is sent, and no account identity is verified.</p></aside>
     <p class="offline-note" id="offlineStatus" role="status">The demo can be saved for offline use after your first online visit.</p>
   </main>

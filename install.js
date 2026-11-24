@@ -5,7 +5,7 @@
   const status = document.getElementById('installStatus');
   const help = document.getElementById('installHelp');
   if (location.hostname === 'appassets.androidplatform.net') {
-    const installLink = document.querySelector('.profile a[href="./install.html"]');
+    const installLink = document.querySelector('.header-actions a[href="./install.html"]');
     if (installLink) { installLink.textContent = 'Android demo'; installLink.removeAttribute('href'); }
   }
   const standalone = window.matchMedia('(display-mode: standalone)');
@@ -40,7 +40,7 @@
     const iphone = document.getElementById('iphoneHelp'), android = document.getElementById('androidHelp');
     if (iphone) iphone.open = true; if (android) android.open = false;
     if (status && !standalone.matches && !navigator.standalone) status.textContent = 'On iPhone, open in Safari, then use Share and Add to Home Screen.';
-    if (button && !standalone.matches && !navigator.standalone) button.textContent = 'Add to Home Screen';
+    if (button && !standalone.matches && !navigator.standalone) button.textContent = 'Show iPhone install steps';
     document.getElementById('apkPending')?.setAttribute('hidden', '');
     const apkStatus = document.getElementById('apkStatus');
     if (apkStatus) apkStatus.textContent = 'iPhone: use the Safari home-screen instructions below.';

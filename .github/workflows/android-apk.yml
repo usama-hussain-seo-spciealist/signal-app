@@ -8,6 +8,9 @@ on:
       - 'scripts/**'
       - 'app.js'
       - 'core.js'
+      - 'account-core.js'
+      - 'account-store.js'
+      - 'account.test.cjs'
       - 'scanner.js'
       - 'scanner.test.cjs'
       - 'test-qrs/**'
@@ -29,8 +32,9 @@ jobs:
     timeout-minutes: 35
     permissions:
       contents: write
+      actions: read
     env:
-      VERSION: '1.3.0'
+      VERSION: '2.0.0'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
@@ -47,7 +51,7 @@ jobs:
           gradle-version: '8.11.1'
       - name: Validate web demo and bundle existing assets
         run: |
-          node --test core.test.cjs install.test.cjs scanner.test.cjs
+          node --test core.test.cjs install.test.cjs scanner.test.cjs account.test.cjs sw-release.test.cjs
           node --check app.js
           node scripts/package-android.cjs
       - name: Build signed release APK and emulator test APKs
@@ -108,6 +112,18 @@ jobs:
             android/app/build/reports/androidTests/
             android/app/build/outputs/androidTest-results/
           if-no-files-found: warn
+      - name: Require successful browser verification before release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 60); do
+            result=$(gh run list --workflow qr-tests.yml --commit "$GITHUB_SHA" --limit 1 --json status,conclusion --jq '.[0] | [.status, .conclusion] | @tsv')
+            if [ "$result" = $'completed\tsuccess' ]; then exit 0; fi
+            if [[ "$result" == completed* ]]; then echo 'Browser verification did not succeed; release blocked.'; exit 1; fi
+            sleep 10
+          done
+          echo 'Browser verification is still unavailable; release blocked.'
+          exit 1
       - name: Publish verified APK to GitHub Releases
         env:
           GH_TOKEN: ${{ github.token }}

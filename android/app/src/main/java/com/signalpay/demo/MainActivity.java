@@ -4,6 +4,8 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.ClipData;
+import android.util.Base64;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
@@ -22,9 +24,12 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.webkit.WebViewAssetLoader;
+import androidx.core.content.FileProvider;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Locale;
@@ -69,7 +74,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setGeolocationEnabled(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/1.2.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/2.0.0");
         WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
         webView.setWebViewClient(new WebViewClient() {
@@ -119,6 +124,24 @@ public class MainActivity extends Activity {
             }
         });
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(webView, "SignalQR", Collections.singleton(ORIGIN), (view, message, source, mainFrame, reply) -> {
+                if (!mainFrame || !isTrustedOrigin(source) || !isLocal(Uri.parse(view.getUrl()))) return;
+                try {
+                    JSONObject data = new JSONObject(message.getData());
+                    String png = data.optString("png");
+                    if (!"share".equals(data.optString("action")) || !png.startsWith("data:image/png;base64,") || png.length() > 1500000) return;
+                    byte[] bytes = Base64.decode(png.substring(22), Base64.DEFAULT);
+                    if (bytes.length < 8 || bytes[0] != (byte) 137 || bytes[1] != 80 || bytes[2] != 78 || bytes[3] != 71) return;
+                    File dir = new File(getCacheDir(), "shared");
+                    if (!dir.exists() && !dir.mkdirs()) throw new java.io.IOException("No share cache");
+                    File image = new File(dir, "SignalPay-QR.png");
+                    try (FileOutputStream out = new FileOutputStream(image)) { out.write(bytes); }
+                    Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".files", image);
+                    Intent send = new Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    send.setClipData(ClipData.newRawUri("SignalPay demo QR", uri));
+                    startActivity(Intent.createChooser(send, "Share SignalPay QR"));
+                } catch (Exception ignored) { Toast.makeText(this, "Sharing unavailable. Show the QR on this screen instead.", Toast.LENGTH_SHORT).show(); }
+            });
             WebViewCompat.addWebMessageListener(webView, "SignalSoundbox", Collections.singleton(ORIGIN), (view, message, source, mainFrame, reply) -> {
                 if (!mainFrame || !isTrustedOrigin(source) || !isLocal(Uri.parse(view.getUrl()))) return;
                 try {
