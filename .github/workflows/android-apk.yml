@@ -24,6 +24,7 @@ on:
       - 'install.test.cjs'
       - 'index.html'
       - 'styles.css'
+      - 'browser-tests/**'
       - '.github/workflows/android-apk.yml'
 permissions:
   contents: read
