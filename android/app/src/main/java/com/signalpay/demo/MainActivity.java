@@ -74,7 +74,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setGeolocationEnabled(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/3.0.2");
+        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/3.0.3");
         WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
         webView.setWebViewClient(new WebViewClient() {
