@@ -3,8 +3,9 @@ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const base='http://127.0.0.1:4173/signal-app/';
 async function ready(page){await page.goto(base);await expect(page.locator('#appContent')).toBeVisible();}
 async function snapshot(page){return page.evaluate(async()=>{const w=await SignalAccountStore.openStore(indexedDB).read();return {id:w.account.id,qr:w.accountQR,balance:w.balance,available:SignalAccounts.available(w),transactions:w.transactions.map(t=>({id:t.id,status:t.status,direction:t.direction,cents:t.cents,receipt:t.receiptRaw}))};});}
-async function qr(page,id){const url=await page.locator('#'+id+' img').getAttribute('src');return Buffer.from(url.split(',')[1],'base64');}
-async function upload(page,bytes){await page.locator('#navScan').click();await page.locator('#stopCamera').click({timeout:1500}).catch(()=>{});await page.locator('#qrFile').setInputFiles({name:'SignalPay-QR.png',mimeType:'image/png',buffer:bytes});}
+// Transfer the visible raster, not the larger original canvas. This checks screen QR sharpness too.
+async function qr(page,id){const image=page.locator('#'+id+' img');await image.scrollIntoViewIfNeeded();await page.waitForFunction(id=>{const img=document.querySelector('#'+id+' img');return img&&img.style.width;},id);return image.screenshot();}
+async function upload(page,bytes){await page.locator('#navScan').click();await page.locator('#qrFile').setInputFiles({name:'SignalPay-QR.png',mimeType:'image/png',buffer:bytes});}
 async function offer(sender,receiver,mode='offline',amount='100'){
  await receiver.locator('#receive').click();await upload(sender,await qr(receiver,'accountQR'));await expect(sender.locator('#paymentForm')).toBeVisible();await sender.locator(mode==='offline'?'#modeOffline':'#modeOnline').click();await sender.locator('#amount').fill(amount);await sender.locator('#paymentForm button[type=submit]').click();await expect(sender.locator('#reviewDialog')).toBeVisible();await expect(sender.locator('#reviewMode')).toContainText(mode==='offline'?'Offline':'Online');await sender.locator('#confirmPayment').click();await expect(sender.locator('#transferStatus')).toHaveText('Pending');return qr(sender,'transferQR');
 }
