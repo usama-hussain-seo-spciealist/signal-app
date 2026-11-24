@@ -45,7 +45,7 @@ test('injected QR camera frames decode after PIN login without trusting a QR nam
  await open(page);await register(page,USAMA);await page.locator('#scanQR').click();await expect(page.locator('#trustDialog')).toBeVisible({timeout:20000});await expect(page.locator('#amountDialog')).toBeHidden();expect(await page.evaluate(()=>qrTracks.every(t=>t.readyState==='ended'))).toBe(true);await expect(page.locator('#trustedName')).toHaveValue('');await page.evaluate(()=>clearInterval(qrTimer));
 });
 test('camera without video frames times out clearly and QR image fallback reads exact data',async({page})=>{
- await page.addInitScript(()=>Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>new MediaStream()}));
+ await page.addInitScript(()=>{const play=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){return this.id==='video'?new Promise(()=>{}):play.call(this);};Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>new MediaStream()});});
  await open(page);await register(page,USAMA);await page.locator('#scanQR').click();await expect(page.locator('#scanStatus')).toContainText('supplied no video frames',{timeout:22000});await expect(page.locator('#startCamera')).toBeEnabled();
  await page.locator('#qrFile').setInputFiles(path.resolve('test-qrs/account-receiver.png'));await expect(page.locator('#trustDialog')).toBeVisible();await expect(page.locator('#decodedData')).toHaveText(JSON.parse(fs.readFileSync('test-qrs/account-payloads.json')).packets.find(p=>p.name==='account-receiver').raw);await expect(page.locator('#trustedName')).toHaveValue('');
 });
