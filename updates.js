@@ -1,6 +1,6 @@
 (function(root){
  'use strict';
- const CURRENT='3.2.1',BASE='https://usama-hussain-seo-spciealist.github.io/signal-app/';
+ const CURRENT='3.2.2',BASE='https://usama-hussain-seo-spciealist.github.io/signal-app/';
  function version(value){if(typeof value!=='string'||!/^(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})$/.test(value))throw Error('Invalid update version.');return value.split('.').map(Number);}
  function compare(a,b){const x=version(a),y=version(b);for(let i=0;i<3;i++)if(x[i]!==y[i])return x[i]>y[i]?1:-1;return 0;}
  function validateRelease(release){
