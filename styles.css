@@ -9,3 +9,5 @@
 .quick-actions{grid-template-columns:repeat(4,minmax(0,1fr))}.action{min-width:0}.action strong{white-space:normal;overflow-wrap:anywhere;line-height:1.35}
 
 .identity-check{display:flex;align-items:start;gap:9px;line-height:1.6;font-size:12px}.identity-check input{flex-shrink:0;margin-top:4px;accent-color:var(--purple)}#recipientIdentity{font-size:12px}#receiverId{overflow-wrap:anywhere}#receiptAudio{display:none}
+
+#updatesDialog .status{font-size:13px;line-height:1.7}#updateChecksum{overflow-wrap:anywhere}#openUpdates{min-height:36px}

@@ -28,4 +28,21 @@ public class DemoWebViewTest {
  @Test public void nativeSoundboxAndMute()throws Exception{assertEquals("true",js("!!window.SignalSoundbox&&!!window.SignalQR"));activity.getScenario().onActivity(s->s.lastSpeechText="");js("document.getElementById('testSound').click()");AtomicReference<String> spoken=new AtomicReference<>("");for(int i=0;i<60;i++){activity.getScenario().onActivity(s->spoken.set(s.lastSpeechText));if(spoken.get().contains("100"))break;Thread.sleep(100);}assertTrue(spoken.get().contains("100")&&spoken.get().contains("simulation"));activity.getScenario().onActivity(s->s.lastSpeechText="");js("document.getElementById('soundEnabled').checked=false;document.getElementById('testSound').click()");activity.getScenario().onActivity(s->spoken.set(s.lastSpeechText));assertEquals("",spoken.get());}
  @Test public void logoutAndWrongPinHidePrivateWallet()throws Exception{js("document.getElementById('logout').click()");until("!document.getElementById('authScreen').hidden");assertEquals("true",js("document.getElementById('accountQR').textContent===''&&document.getElementById('activityRows').textContent===''&&document.getElementById('accountName').textContent===''") );js("document.getElementById('loginMobile').value='+923001110101';document.getElementById('loginPin').value='94583726';document.getElementById('loginForm').requestSubmit()");until("document.getElementById('authError').textContent.includes('incorrect')");assertEquals("true",js("document.getElementById('appContent').hidden"));loginAdil();}
  @Test public void invalidQrAndUntrustedOriginsFailClosed()throws Exception{assertFalse(MainActivity.isLocal(Uri.parse("https://evil.example/assets/www/index.html")));assertFalse(MainActivity.isExternalAllowed(Uri.parse("https://github.com/other/repo/releases/latest")));async("let rejected=false;try{await SignalAccounts.verify('SIGNALPAY-TEST-123')}catch(e){rejected=true}if(!rejected)throw Error('Invalid QR accepted');");}
+
+ @Test public void inAppUpdatesUseNativeBridgeAndRejectUnverifiedOrOlderMetadata()throws Exception{
+  assertEquals("true",js("!!window.SignalUpdater"));
+  String current=BuildConfig.VERSION_NAME.replace("-debug", "");
+  String future="{\"verified\":true,\"version\":\"99.0.0\",\"url\":\"https://github.com/usama-hussain-seo-spciealist/signal-app/releases/download/android-v99.0.0/SignalPay-demo-99.0.0.apk\",\"sha256\":\""+new String(new char[64]).replace("\0", "a")+"\",\"bytes\":1500000}";
+  activity.getScenario().onActivity(a->a.updateFetcher=()->future);
+  js("document.getElementById('openUpdates').click()");until("!document.getElementById('updateAPK').hidden");
+  assertEquals("\""+current+"\"",js("document.getElementById('installedVersion').textContent"));
+  assertEquals("true",js("document.getElementById('updateAPK').getAttribute('href').endsWith('SignalPay-demo-99.0.0.apk')"));
+  String same=future.replace("99.0.0",current);activity.getScenario().onActivity(a->a.updateFetcher=()->same);
+  js("document.getElementById('checkUpdates').click()");until("document.getElementById('updateStatus').textContent.includes('up to date')");assertEquals("true",js("document.getElementById('updateAPK').hidden"));
+  activity.getScenario().onActivity(a->a.updateFetcher=()->future.replace("\"verified\":true","\"verified\":false"));
+  js("document.getElementById('checkUpdates').click()");until("document.getElementById('updateStatus').textContent.includes('has not been verified')");assertEquals("true",js("document.getElementById('updateAPK').hidden"));
+  activity.getScenario().onActivity(a->a.updateFetcher=()->{throw new java.io.IOException("offline");});
+  js("document.getElementById('checkUpdates').click()");until("document.getElementById('updateStatus').textContent.includes('internet')");assertEquals("true",js("document.getElementById('updateAPK').hidden"));
+  js("document.getElementById('closeUpdates').click()");assertEquals("true",js("!document.getElementById('appContent').hidden"));
+ }
 }

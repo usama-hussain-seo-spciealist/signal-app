@@ -5,3 +5,8 @@ test('verified APK metadata refreshes online and falls back to cached copy offli
  vm.runInNewContext(fs.readFileSync(__dirname+'/sw.js','utf8'),{self:{location:{href:scope+'sw.js'},addEventListener:(name,fn)=>handlers[name]=fn},caches,URL,fetch:async()=>{if(!online)throw Error('offline');return new Response('{"version":"1.3.0"}');}});
  let response;const event={request:{url,method:'GET'},respondWith:p=>response=p};handlers.fetch(event);assert.equal((await(await response).json()).version,'1.3.0');online=false;handlers.fetch(event);assert.equal((await(await response).json()).version,'1.3.0');
 });
+test('web update version check never reports a cached version as a fresh online check',async()=>{
+ const scope='https://example.github.io/signal-app/',handlers={};
+ vm.runInNewContext(fs.readFileSync(__dirname+'/sw.js','utf8'),{self:{location:{href:scope+'sw.js'},addEventListener:(name,fn)=>handlers[name]=fn},URL,caches:{open:async()=>({match:async()=>new Response('{"version":"old"}')})},fetch:async()=>{throw Error('offline');}});
+ let response;handlers.fetch({request:{url:scope+'app-version.json',method:'GET'},respondWith:p=>response=p});await assert.rejects(response,/offline/);
+});

@@ -30,6 +30,12 @@ import androidx.webkit.WebViewFeature;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.IOException;
+import java.net.URL;
+import javax.net.ssl.HttpsURLConnection;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Locale;
@@ -46,6 +52,9 @@ public class MainActivity extends Activity {
     private boolean speechReady;
     // Package-visible only so instrumented tests can confirm the native speech request.
     String lastSpeechText = "";
+    interface ReleaseFetcher { String fetch() throws Exception; }
+    ReleaseFetcher updateFetcher = MainActivity::fetchUpdateMetadata;
+    private final AtomicBoolean updatesInFlight = new AtomicBoolean(false);
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -74,7 +83,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setGeolocationEnabled(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/3.1.1");
+        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/3.2.0");
         WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
         webView.setWebViewClient(new WebViewClient() {
@@ -126,6 +135,32 @@ public class MainActivity extends Activity {
             }
         });
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(webView, "SignalUpdater", Collections.singleton(ORIGIN), (view, message, source, mainFrame, reply) -> {
+                if (!mainFrame || !isTrustedOrigin(source) || !isLocal(Uri.parse(view.getUrl()))) return;
+                try {
+                    JSONObject request = new JSONObject(message.getData());
+                    String requestId = request.optString("requestId");
+                    if (!"check".equals(request.optString("action")) || !requestId.matches("[0-9]{1,9}") || !updatesInFlight.compareAndSet(false, true)) return;
+                    Thread worker = new Thread(() -> {
+                        JSONObject response = new JSONObject();
+                        try {
+                            response.put("requestId", requestId).put("currentVersion", BuildConfig.VERSION_NAME);
+                            String raw = updateFetcher.fetch();
+                            if (raw == null || raw.length() > 16384) throw new IOException("Invalid metadata size");
+                            response.put("release", new JSONObject(raw)).put("ok", true);
+                        } catch (Exception error) {
+                            try { response.put("requestId", requestId).put("ok", false); } catch (Exception ignored) { }
+                        }
+                        String result = response.toString();
+                        runOnUiThread(() -> {
+                            updatesInFlight.set(false);
+                            if (!isFinishing() && !isDestroyed() && webView != null && isLocal(Uri.parse(webView.getUrl()))) reply.postMessage(result);
+                        });
+                    }, "SignalPay-update-check");
+                    worker.setDaemon(true); worker.start();
+                } catch (Exception ignored) { }
+            });
+
             WebViewCompat.addWebMessageListener(webView, "SignalQR", Collections.singleton(ORIGIN), (view, message, source, mainFrame, reply) -> {
                 if (!mainFrame || !isTrustedOrigin(source) || !isLocal(Uri.parse(view.getUrl()))) return;
                 try {
@@ -164,6 +199,26 @@ public class MainActivity extends Activity {
             });
         }
         if (state == null || webView.restoreState(state) == null) webView.loadUrl(START);
+    }
+
+
+    private static String fetchUpdateMetadata() throws Exception {
+        URL url = new URL("https://usama-hussain-seo-spciealist.github.io/signal-app/android-release.json");
+        HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
+        connection.setInstanceFollowRedirects(false); connection.setUseCaches(false);
+        connection.setConnectTimeout(6000); connection.setReadTimeout(6000);
+        connection.setRequestProperty("Accept", "application/json"); connection.setRequestProperty("Cache-Control", "no-cache, no-store");
+        try {
+            if (connection.getResponseCode() != 200) throw new IOException("Update metadata unavailable");
+            try (InputStream input = connection.getInputStream(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[2048]; int count;
+                while ((count = input.read(buffer)) != -1) {
+                    if (output.size() + count > 16384) throw new IOException("Update metadata too large");
+                    output.write(buffer, 0, count);
+                }
+                return new String(output.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+            }
+        } finally { connection.disconnect(); }
     }
 
     static boolean isTrustedOrigin(Uri uri) { return uri != null && "https".equals(uri.getScheme()) && "appassets.androidplatform.net".equals(uri.getHost()) && uri.getPort() == -1 && uri.getUserInfo() == null; }
