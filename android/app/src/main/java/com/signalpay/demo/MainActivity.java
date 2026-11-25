@@ -74,7 +74,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setGeolocationEnabled(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/3.0.3");
+        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/3.1.0");
         WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
         webView.setWebViewClient(new WebViewClient() {
@@ -155,8 +155,10 @@ public class MainActivity extends Activity {
                     if ("stop".equals(data.optString("action"))) { speech.stop(); return; }
                     long cents = data.getLong("cents");
                     if (!"speak".equals(data.optString("action")) || cents < 100 || cents > 10000000) return;
-                    lastSpeechText = "Demo payment received. " + BigDecimal.valueOf(cents, 2).stripTrailingZeros().toPlainString() + " Pakistani rupees. This is a simulation.";
-                    if (speechReady && speech.speak(lastSpeechText, TextToSpeech.QUEUE_FLUSH, null, "signalpay-demo") != TextToSpeech.ERROR) reply.postMessage("Native soundbox voice requested. Demo payment received.");
+                    String kind = data.optString("kind", "received");
+                    String intro = "sent".equals(kind) ? "Demo payment sent. " : "test".equals(kind) ? "Sound test. " : "Demo payment received. ";
+                    lastSpeechText = intro + BigDecimal.valueOf(cents, 2).stripTrailingZeros().toPlainString() + " Pakistani rupees. This is a simulation.";
+                    if (speechReady && speech.speak(lastSpeechText, TextToSpeech.QUEUE_FLUSH, null, "signalpay-demo") != TextToSpeech.ERROR) reply.postMessage("Native soundbox voice requested. " + intro + "Check media volume and audio output if unheard.");
                     else reply.postMessage("Voice unavailable on this device. Demo receipt and confirmation tone remain available.");
                 } catch (Exception ignored) { reply.postMessage("Soundbox request unavailable. Demo receipt remains visible."); }
             });
