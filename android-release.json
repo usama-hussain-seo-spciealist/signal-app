@@ -1,11 +1,11 @@
 {
   "verified": true,
-  "version": "3.0.3",
-  "url": "https://github.com/usama-hussain-seo-spciealist/signal-app/releases/download/android-v3.0.3/SignalPay-demo-3.0.3.apk",
-  "bytes": 1300068,
-  "sha256": "d9715a500be6067e9bc9304822ebef9b4272673dd132d2e177353902eb8e5da2",
-  "releaseUrl": "https://github.com/usama-hussain-seo-spciealist/signal-app/releases/tag/android-v3.0.3",
-  "buildUrl": "https://github.com/usama-hussain-seo-spciealist/signal-app/actions/runs/45391373935",
-  "sourceCommit": "d4e381fd714fdc175ab92414973c6fe501b450f9",
-  "verifiedAt": "2026-11-24T12:18:13.662Z"
+  "version": "3.1.1",
+  "url": "https://github.com/usama-hussain-seo-spciealist/signal-app/releases/download/android-v3.1.1/SignalPay-demo-3.1.1.apk",
+  "bytes": 1346378,
+  "sha256": "ec1c519f36bcdc9620a17d1c2362c1c955e2ff9697374585268054f7c1bf9efd",
+  "releaseUrl": "https://github.com/usama-hussain-seo-spciealist/signal-app/releases/tag/android-v3.1.1",
+  "buildUrl": "https://github.com/usama-hussain-seo-spciealist/signal-app/actions/runs/45613335937",
+  "sourceCommit": "05fdc60621617670454c30ae2c8298df1fdf017a",
+  "verifiedAt": "2026-11-25T12:28:30.408Z"
 }
