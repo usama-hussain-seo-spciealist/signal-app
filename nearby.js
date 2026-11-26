@@ -33,7 +33,9 @@ const nearby=(()=>{
   if(['capability','permission','discovering','listening'].includes(event.type)){status(event.detail);return;}
   if(event.type==='stopped'||!state)return;const current=state,{token,check}=current;active(token,check);
   if(event.type==='connected'){
-   if(current.handshake||current.channel)throw Error('Duplicate Bluetooth connection event. Reconnect this saved transaction.');
+   // A receiver notification can arrive before the central's subscription callback.
+   // Preserve an already-started/authenticated handshake when that callback arrives late.
+   if(current.handshake||current.channel)return;
    status('BLE connected. Authenticating account keys; this is not a payment receipt.');
    if(current.role==='receiver'){current.handshake=await N.receiver(current.wallet);active(token,check);post({action:'send',text:current.handshake.hello});}
    return;
