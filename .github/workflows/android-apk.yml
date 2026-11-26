@@ -136,8 +136,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           for attempt in $(seq 1 120); do
-            result=$(gh run list --workflow qr-tests.yml --commit "$GITHUB_SHA" --limit 1 --json status,conclusion --jq '.[0] | [.status, .conclusion] | @tsv')
-            ios=$(gh run list --workflow ios-app.yml --commit "$GITHUB_SHA" --limit 1 --json status,conclusion --jq '.[0] | [.status, .conclusion] | @tsv')
+            result=$(gh run list --workflow qr-tests.yml --branch main --commit "$GITHUB_SHA" --limit 1 --json status,conclusion --jq '.[0] | [.status, .conclusion] | @tsv')
+            ios=$(gh run list --workflow ios-app.yml --branch main --commit "$GITHUB_SHA" --limit 1 --json status,conclusion --jq '.[0] | [.status, .conclusion] | @tsv')
             if [ "$result" = $'completed\tsuccess' ] && [ "$ios" = $'completed\tsuccess' ]; then exit 0; fi
             if [[ "$ios" == completed* && "$ios" != $'completed\tsuccess' ]]; then echo 'Native iOS verification did not succeed; release blocked.'; exit 1; fi
             if [[ "$result" == completed* && "$result" != $'completed\tsuccess' ]]; then echo 'Browser verification did not succeed; release blocked.'; exit 1; fi

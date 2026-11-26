@@ -26,7 +26,7 @@ final class NearbyBle {
  private final NearbyFrame input=new NearbyFrame();private final ArrayDeque<byte[]> output=new ArrayDeque<>();
  private BluetoothAdapter adapter;private BluetoothGattServer server;private BluetoothGatt client;private BluetoothDevice remote;private BluetoothGattCharacteristic write,notify;
  private BluetoothLeScanner scanner;private BluetoothLeAdvertiser advertiser;private ScanCallback scan;private AdvertiseCallback advertising;
- private JSONObject pendingPermission;private UUID service;private boolean peripheral,connected,sending,closed;private int mtu=23,messageId=0,generation=0,writeSerial=0;
+ private JSONObject pendingPermission;private UUID service;private boolean peripheral,connected,sending,closed,backgrounded;private int mtu=23,messageId=0,generation=0,writeSerial=0;
  NearbyBle(Activity activity,Events events){this.activity=activity;this.events=events;BluetoothManager m=(BluetoothManager)activity.getSystemService(Activity.BLUETOOTH_SERVICE);adapter=m==null?null:m.getAdapter();}
  private void runOnMain(Runnable task){main.post(()->{try{task.run();}catch(Exception error){fail("Bluetooth operation failed. Retry the saved transaction: "+error.getClass().getSimpleName());}});}
  private void emit(String type,String detail){try{JSONObject e=new JSONObject().put("type",type).put("detail",detail).put("role",peripheral?"receiver":"sender");events.event(e);}catch(Exception ignored){}}
@@ -35,6 +35,7 @@ final class NearbyBle {
   String action=command.optString("action");
   if("stop".equals(action)){stop();emit("stopped","Nearby transport stopped. Pending payments remain pending.");return;}
   if("status".equals(action)){emit("capability",adapter==null||!activity.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)?"BLE unavailable on this device/emulator.":"Native BLE API available. Hardware discovery/delivery is not verified by this check.");return;}
+  if(backgrounded){fail("App is in the background. Unlock and retry this saved Pending transaction.");return;}
   if("send".equals(action)){send(command.getString("text"));return;}
   if(!"listen".equals(action)&&!"connect".equals(action))throw new IllegalArgumentException("Unsupported nearby action");
   String account=command.getString("accountId");if(!account.matches("SP-[a-f0-9]{32}"))throw new IllegalArgumentException("Invalid nearby receiver account");
@@ -44,6 +45,8 @@ final class NearbyBle {
   start(action,account);
  }catch(Exception error){fail(error.getMessage());}});}
  void permissionResult(){JSONObject command=pendingPermission;pendingPermission=null;if(command==null)return;boolean granted=true;String[] permissions=Build.VERSION.SDK_INT>=31?new String[]{Manifest.permission.BLUETOOTH_SCAN,Manifest.permission.BLUETOOTH_CONNECT,Manifest.permission.BLUETOOTH_ADVERTISE}:new String[]{Manifest.permission.ACCESS_FINE_LOCATION};for(String p:permissions)if(activity.checkSelfPermission(p)!=PackageManager.PERMISSION_GRANTED)granted=false;if(granted)dispatch(command);else emit("unavailable","Bluetooth permission denied. No Bluetooth payment was delivered.");}
+ void foreground(){backgrounded=false;}
+ void background(){backgrounded=true;stop();}
  boolean awaitingPermission(){return pendingPermission!=null;}
  static UUID accountService(String id){if(!id.matches("SP-[a-f0-9]{32}"))throw new IllegalArgumentException("Invalid account");String h=id.substring(3);return UUID.fromString(h.substring(0,8)+"-"+h.substring(8,12)+"-"+h.substring(12,16)+"-"+h.substring(16,20)+"-"+h.substring(20));}
  private void start(String action,String account){

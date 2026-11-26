@@ -278,8 +278,8 @@ public class MainActivity extends Activity {
         if (pendingCamera == null) webView.evaluateJavascript("if(typeof stopCamera==='function')stopCamera();", null);
         webView.onPause(); if (speech != null) speech.stop(); super.onPause();
     }
-    @Override protected void onResume() { super.onResume(); if (webView != null) webView.onResume(); }
-    @Override protected void onStop() { if (pendingCamera != null) { pendingCamera.deny(); pendingCamera = null; } super.onStop(); }
+    @Override protected void onResume() { super.onResume(); if (nearbyBle != null) nearbyBle.foreground(); if (webView != null) webView.onResume(); }
+    @Override protected void onStop() { if (nearbyBle != null) nearbyBle.background(); if (pendingCamera != null) { pendingCamera.deny(); pendingCamera = null; } super.onStop(); }
     @Override public void onBackPressed() { if (webView.canGoBack()) webView.goBack(); else super.onBackPressed(); }
     @Override protected void onDestroy() {
         if (nearbyBle != null) nearbyBle.stop();

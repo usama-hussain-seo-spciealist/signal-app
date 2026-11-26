@@ -66,7 +66,7 @@ import WebKit
  }
  func testBackgroundLocksWalletAndKeepsAccount() async throws {
   defer {closeHosts()}; let h=try await host();try await register(h);let before=try await wallet(h)
-  h.coverForPrivacy();h.lockForBackground();try await wait(h,"document.getElementById('appContent').hidden && document.getElementById('accountName').textContent===''");h.becameActive();try await login(h);let after=try await wallet(h);XCTAssertEqual(after,before)
+  h.coverForPrivacy();h.lockForBackground();try await wait(h,"document.getElementById('appContent').hidden && document.getElementById('accountName').textContent===''");_ = try await js(h,"SignalNearby.postMessage(JSON.stringify({action:'connect',accountId:'SP-00000000000000000000000000000000'}));return true");try await wait(h,"document.getElementById('nearbyStatus').textContent.includes('background')");h.becameActive();try await login(h);let after=try await wallet(h);XCTAssertEqual(after,before)
  }
  func testOriginAndBundledPathGuards() {
   XCTAssertTrue(WalletController.isLocal(BundleServer.home));XCTAssertFalse(WalletController.isLocal(URL(string:"https://evil.example/signal-app/index.html")));XCTAssertFalse(WalletController.isLocal(URL(string:"http://127.0.0.1:18744/signal-app/index.html")))

@@ -55,6 +55,9 @@ final class WalletController: UIViewController, WKScriptMessageHandler, WKNaviga
         message.frameInfo.securityOrigin.protocol == "http",message.frameInfo.securityOrigin.host == "127.0.0.1",message.frameInfo.securityOrigin.port == 18743,
         let raw = message.body as? String,raw.utf8.count <= 6_000_000,
         let data = raw.data(using:.utf8),let command = try? JSONSerialization.jsonObject(with:data) as? [String:Any] else { return }
+  if backgrounded && command["action"] as? String != "stop" {
+   if message.name == "SignalNearby" { send("SignalNearby",["type":"error","detail":"App is in the background. Unlock and reopen Receive; unconfirmed payments remain Pending."]) }; return
+  }
   switch message.name {
   case "SignalNearby": nearby(command)
   case "SignalCamera": scan(command)
@@ -120,7 +123,7 @@ final class WalletController: UIViewController, WKScriptMessageHandler, WKNaviga
  func coverForPrivacy() { if cover != nil { return }; let container: UIView = view.window ?? view; let shield = UIView(frame:container.bounds); shield.backgroundColor = .systemBackground; shield.autoresizingMask = [.flexibleWidth,.flexibleHeight]; container.addSubview(shield); cover = shield }
  func lockForBackground() { backgrounded = true; transport?.stop(); camera?.stop(); camera?.dismiss(animated:false); camera = nil; cameraRequest = nil; speech.stopSpeaking(at:.immediate); lockWebWallet() }
  private func lockWebWallet(_ completion: (() -> Void)? = nil) { webView.evaluateJavaScript("window.dispatchEvent(new Event('signalpay-native-lock'))") {_,_ in completion?()} }
- func becameActive() { if backgrounded { backgrounded = false; lockWebWallet { [weak self] in self?.cover?.removeFromSuperview(); self?.cover = nil } } else { cover?.removeFromSuperview(); cover = nil } }
+ func becameActive() { if backgrounded { lockWebWallet { [weak self] in self?.backgrounded = false; self?.cover?.removeFromSuperview(); self?.cover = nil } } else { cover?.removeFromSuperview(); cover = nil } }
  private func showError(_ message: String) { let alert = UIAlertController(title:"SignalPay Demo",message:message,preferredStyle:.alert); alert.addAction(UIAlertAction(title:"OK",style:.default)); present(alert,animated:true) }
  deinit { transport?.stop(); camera?.stop(); for name in scriptNames { webView?.configuration.userContentController.removeScriptMessageHandler(forName:name) } }
 }
