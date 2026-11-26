@@ -15,9 +15,9 @@ const nearby=(()=>{
   state={role:'receiver',check,token,wallet:w,channel:null,peer:null,handshake:null};post({action:'listen',accountId:w.account.id});status('Preparing foreground Bluetooth receive. Keep SignalPay open on both native apps.');
  }
  async function connect(row){
-  if(!supported())throw Error('Native Bluetooth is unavailable. No BLE delivery was attempted.');if(!row.peerQR)throw Error('This older transaction has no saved receiver card. Use its existing QR receipt flow.');
+  if(!supported())throw Error('Native Bluetooth is unavailable. No BLE delivery was attempted.');if(row.cents>100000)throw Error('Bluetooth demo limit is PKR 1,000. Use the saved QR receipt flow for this older payment.');
   stop();const check=vault.lease(),token=generation,w=await store.read();check();if(token!==generation)throw Error('Session changed.');
-  state={role:'sender',check,token,wallet:w,peerQR:row.peerQR,peer:row.peer,channel:null,id:row.id};
+  state={role:'sender',check,token,wallet:w,peerQR:row.peerQR||row.peer,peer:row.peer,channel:null,id:row.id};
   const promise=new Promise((resolve,reject)=>{waiter={resolve,reject};timeout=setTimeout(()=>{if(token===generation)stop('Receiver unavailable or authentication timed out. Transaction remains Pending; retry the same transaction.');},35000);});
   post({action:'connect',accountId:row.peer.id});status('Discovering receiver · no internet needed. Payment is still Pending.');await promise;active(token,check);return {token,check};
  }
@@ -42,7 +42,7 @@ const nearby=(()=>{
   }
   if(event.type!=='message')return;
   if(!current.channel){
-   if(current.role==='sender'){const result=await N.sender(current.wallet,current.peerQR,event.text);active(token,check);current.channel=result.channel;current.peer=result.peer;post({action:'send',text:result.reply});status('Scanned receiver key authenticated. Preparing encrypted delivery.');ready();}
+   if(current.role==='sender'){const result=await N.sender(current.wallet,current.peerQR,event.text);active(token,check);current.channel=result.channel;current.peer=result.peer;const pending=(await store.read()).transactions.find(t=>t.id===current.id);active(token,check);if(!pending||pending.status!=='Pending')throw Error('Saved payment is no longer pending.');if(!pending.peerQR){await save(w=>{if(!w.transactions.some(t=>t.id===current.id&&t.status==='Pending'))throw Error('Saved payment is no longer pending.');return {...w,transactions:w.transactions.map(t=>t.id===current.id?{...t,transport:'ble',peerQR:result.receiverQR}:t)};});active(token,check);showTransfer(current.id);}post({action:'send',text:result.reply});status('Scanned receiver key authenticated. Preparing encrypted delivery.');ready();}
    else{if(!current.handshake)throw Error('Nearby handshake arrived before receiver preparation.');const result=await current.handshake.finish(event.text);active(token,check);current.channel=result.channel;current.peer=result.peer;status('Sender key authenticated. Awaiting an encrypted signed payment.');}
    return;
   }
@@ -59,7 +59,8 @@ const nearby=(()=>{
   }
  }
  if(bridge)bridge.onmessage=event=>{let value;try{value=JSON.parse(event.data);}catch(_){stop('Malformed native Bluetooth response.');return;}const token=generation;queue=queue.then(()=>{if(token===generation)return handle(value);}).catch(error=>{if(token===generation)stop(error.message||'Bluetooth session failed. Pending state retained.');});};
- $('useNearby').checked=supported();$('useNearby').disabled=!supported();$('startNearbyReceive').disabled=!supported();$('nearbyCapability').textContent=supported()?'Experimental native foreground BLE. Hardware interoperability is unverified. Leave off to use the existing QR transport.':'Native Bluetooth unavailable in this Safari/PWA/browser installation. iPhone needs a signed native Core Bluetooth app; its setup is not configured.';
+ $('useNearby').checked=supported();$('useNearby').disabled=!supported();$('startNearbyReceive').disabled=!supported();$('nearbyCapability').textContent=supported()?'Bluetooth is the default in this native test app. Keep both phones open. Physical interoperability is unverified. Turn off only for QR recovery.':'Native Bluetooth unavailable in this Safari/PWA/browser installation. iPhone needs a signed native Core Bluetooth app; its setup is not configured.';
+ if(supported()){$('deliveryTitle').textContent='One account scan. Signed receipt.';$('deliveryGuideText').textContent='Receiver opens Receive. Sender scans once, enters an amount and confirms. Receiver accepts; the signed receipt returns over Bluetooth. Internet and cellular service are not required. Unconfirmed transfers stay Pending.';document.querySelector('#payOnline small').textContent='Bluetooth demo';}
  $('startNearbyReceive').addEventListener('click',()=>listen().catch(e=>status(e.message)));$('stopNearby').addEventListener('click',()=>stop('Bluetooth session stopped. Saved payments and receipts were kept.'));
  ['receive','navReceive'].forEach(id=>$(id).addEventListener('click',()=>{if(supported()&&!state)listen().catch(e=>status(e.message));}));
  $('retryNearby').addEventListener('click',()=>sendPending(activeTransfer).catch(e=>status(e.message)));

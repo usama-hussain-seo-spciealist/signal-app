@@ -21,7 +21,7 @@ public final class CoreBluetoothTransport: NSObject, CBCentralManagerDelegate, C
   pendingStart = true; let token = generation
   if receiver { peripheral = CBPeripheralManager(delegate:self, queue:.main) } else { central = CBCentralManager(delegate:self, queue:.main) }
   onEvent?(.state("Preparing foreground Bluetooth. Allow access if prompted; keep this app open."))
-  DispatchQueue.main.asyncAfter(deadline:.now()+30) { [weak self] in guard let self, self.generation == token, self.pendingStart || (self.remote == nil && self.subscriber == nil) else { return }; self.fail("Receiver not connected. Retry this same saved transaction.") }
+  DispatchQueue.main.asyncAfter(deadline:.now()+30) { [weak self] in guard let self, self.generation == token, !self.receiving, self.pendingStart || (self.remote == nil && self.subscriber == nil) else { return }; self.fail("Receiver not connected. Retry this same saved transaction.") }
   DispatchQueue.main.asyncAfter(deadline:.now()+120) { [weak self] in guard let self, self.generation == token else { return }; self.fail("Foreground session expired. Retry the same saved transaction.") }
  }
  private func startWhenReady(_ state: CBManagerState) {

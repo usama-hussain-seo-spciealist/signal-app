@@ -1,0 +1,3 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),I=require('./ios-install.js');
+const r={buildVerified:true,signedForDevice:false,signingRequired:true,physicalDeviceTested:false,version:'3.4.0',bytes:500000,sha256:'a'.repeat(64),url:'https://github.com/usama-hussain-seo-spciealist/signal-app/releases/download/ios-v3.4.0/SignalPay-demo-ios-3.4.0-unsigned.ipa'};
+test('iOS package download never labels an unsigned build as directly installable or physically verified',()=>{assert.equal(I.validate(r),r);for(const bad of [{...r,signedForDevice:true},{...r,physicalDeviceTested:true},{...r,buildVerified:false},{...r,signingRequired:false},{...r,url:'https://evil.example/a.ipa'},{...r,sha256:''}])assert.throws(()=>I.validate(bad));});

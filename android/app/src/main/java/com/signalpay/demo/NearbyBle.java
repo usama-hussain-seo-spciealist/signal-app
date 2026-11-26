@@ -50,7 +50,7 @@ final class NearbyBle {
   stop();closed=false;if(!adapter.isEnabled()){emit("unavailable","Bluetooth is off. Turn it on, keep SignalPay open, and retry. Internet is not required.");return;}
   service=accountService(account);peripheral="listen".equals(action);int token=generation;
   if(peripheral)listen(token);else discover(token);
-  main.postDelayed(()->{if(token==generation&&!connected)fail("Receiver not connected. Keep both native apps open and retry the same transaction.");},30000);
+  main.postDelayed(()->{if(token==generation&&!peripheral&&!connected)fail("Receiver not connected. Keep both native apps open and retry the same transaction.");},30000);
   main.postDelayed(()->{if(token==generation)fail("Nearby foreground session expired. Reconnect to retry pending transactions.");},120000);
  }
  private void listen(int token){

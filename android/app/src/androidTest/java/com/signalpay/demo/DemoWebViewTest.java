@@ -29,6 +29,19 @@ public class DemoWebViewTest {
  @Test public void logoutAndWrongPinHidePrivateWallet()throws Exception{js("document.getElementById('logout').click()");until("!document.getElementById('authScreen').hidden");assertEquals("true",js("document.getElementById('accountQR').textContent===''&&document.getElementById('activityRows').textContent===''&&document.getElementById('accountName').textContent===''") );js("document.getElementById('loginMobile').value='+923001110101';document.getElementById('loginPin').value='94583726';document.getElementById('loginForm').requestSubmit()");until("document.getElementById('authError').textContent.includes('incorrect')");assertEquals("true",js("document.getElementById('appContent').hidden"));loginAdil();}
  @Test public void invalidQrAndUntrustedOriginsFailClosed()throws Exception{assertFalse(MainActivity.isLocal(Uri.parse("https://evil.example/assets/www/index.html")));assertFalse(MainActivity.isExternalAllowed(Uri.parse("https://github.com/other/repo/releases/latest")));async("let rejected=false;try{await SignalAccounts.verify('SIGNALPAY-TEST-123')}catch(e){rejected=true}if(!rejected)throw Error('Invalid QR accepted');");}
 
+ @Test public void nativeNearbyBridgeDefaultsToBluetoothAndReportsOnlyCapability()throws Exception{
+  assertEquals("true",js("!!window.SignalNearby&&document.getElementById('useNearby').checked"));
+  js("window.SignalNearby.postMessage(JSON.stringify({action:'status'}))");
+  until("/BLE unavailable|Native BLE API/.test(document.getElementById('nearbyStatus').textContent)");
+ }
+ @Test public void encryptedProfileBackupCannotOverwriteExistingAccount()throws Exception{
+  String id=js("document.getElementById('accountId').textContent");
+  async("const raw=await vault.exportBackup();if(raw.includes('+923001110101')||raw.includes('63728495'))throw Error('Plain profile leak');SignalMigration.parse(raw);window.testBackup=raw;");
+  js("document.getElementById('logout').click()");until("!document.getElementById('authScreen').hidden");
+  async("let rejected=false;try{await vault.restoreBackup(testBackup,'+923001110101','63728495')}catch(e){rejected=e.message.includes('already exists')}if(!rejected)throw Error('Backup overwrote existing profile');");
+  loginAdil();assertEquals(id,js("document.getElementById('accountId').textContent"));
+ }
+
  @Test public void inAppUpdatesUseNativeBridgeAndRejectUnverifiedOrOlderMetadata()throws Exception{
   assertEquals("true",js("!!window.SignalUpdater"));
   String current=BuildConfig.VERSION_NAME.replace("-debug", "");

@@ -180,7 +180,7 @@ public class MainActivity extends Activity {
                         if (json.length() > 5000000) return;
                         JSONObject backup = new JSONObject(json);
                         if (!"signalpay-encrypted-profile".equals(backup.optString("format")) || backup.optInt("v") != 1 || !backup.has("record")) return;
-                        shareFile("SignalPay-encrypted-backup.json", json.getBytes(java.nio.charset.StandardCharsets.UTF_8), "application/json");
+                        shareFile("SignalPay-encrypted-backup-" + java.util.UUID.randomUUID() + ".json", json.getBytes(java.nio.charset.StandardCharsets.UTF_8), "application/json");
                         return;
                     }
                     if ("shareReceipts".equals(data.optString("action"))) {

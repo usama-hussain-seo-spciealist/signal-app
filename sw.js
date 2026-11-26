@@ -1,7 +1,7 @@
 'use strict';
 const CACHE = 'signalpay-demo-shell-v3.4.0';
 const base = new URL('./', self.location.href);
-const assets = ['./migration-core.js?v=3.4.0','./migration.js?v=3.4.0','./native-scanner.js?v=3.4.0','./', './index.html', './install.html', './android-release.json', './app-version.json', './updates.js?v=3.4.0', './nearby-session.js?v=3.4.0', './nearby.js?v=3.4.0', './manifest.webmanifest', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png', './styles.css?v=3.4.0', './install.css?v=3.4.0', './install.js?v=3.4.0', './test-qrs/simple.png', './test-qrs/payment-100.png', './soundbox.js?v=3.4.0', './receipt-chime.wav', './scanner.js?v=3.4.0', './app.js?v=3.4.0', './core.js?v=3.4.0', './account-core.js?v=3.4.0', './account-store.js?v=3.4.0', './auth-crypto.js?v=3.4.0', './auth-store.js?v=3.4.0', './session.js?v=3.4.0', './jsQR.js?v=3.4.0', './qrcode.js?v=3.4.0'].map(path => new URL(path, base).href);
+const assets = ['./ios-install.js?v=3.4.0','./ios-release.json','./migration-core.js?v=3.4.0','./migration.js?v=3.4.0','./native-scanner.js?v=3.4.0','./', './index.html', './install.html', './android-release.json', './app-version.json', './updates.js?v=3.4.0', './nearby-session.js?v=3.4.0', './nearby.js?v=3.4.0', './manifest.webmanifest', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png', './styles.css?v=3.4.0', './install.css?v=3.4.0', './install.js?v=3.4.0', './test-qrs/simple.png', './test-qrs/payment-100.png', './soundbox.js?v=3.4.0', './receipt-chime.wav', './scanner.js?v=3.4.0', './app.js?v=3.4.0', './core.js?v=3.4.0', './account-core.js?v=3.4.0', './account-store.js?v=3.4.0', './auth-crypto.js?v=3.4.0', './auth-store.js?v=3.4.0', './session.js?v=3.4.0', './jsQR.js?v=3.4.0', './qrcode.js?v=3.4.0'].map(path => new URL(path, base).href);
 const paths = new Set(assets.map(path => new URL(path).pathname));
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(assets.map(url => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));
@@ -13,7 +13,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== base.origin || !url.pathname.startsWith(base.pathname) || !paths.has(url.pathname)) return;
   if (url.pathname === new URL('./app-version.json', base).pathname) { event.respondWith(fetch(event.request)); return; }
-  if (url.pathname === new URL('./android-release.json', base).pathname) {
+  if (['./android-release.json','./ios-release.json'].some(file => url.pathname === new URL(file,base).pathname)) {
     event.respondWith(caches.open(CACHE).then(async cache => {
       try { const response = await fetch(event.request); if (!response.ok) throw new Error('Release metadata unavailable'); await cache.put(event.request, response.clone()); return response; }
       catch (_) { return cache.match(event.request); }

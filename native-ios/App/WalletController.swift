@@ -106,7 +106,7 @@ final class WalletController: UIViewController, WKScriptMessageHandler, WKNaviga
   var item: Any
   if action == "share",let png = command["png"] as? String,png.hasPrefix("data:image/png;base64,"),png.count < 1_500_000,let bytes = Data(base64Encoded:String(png.dropFirst(22))),let image = UIImage(data:bytes) { item = image }
   else if ["shareBackup","shareReceipts"].contains(action),let json = command["json"] as? String,json.utf8.count < 5_000_000,let bytes = json.data(using:.utf8),let parsed = try? JSONSerialization.jsonObject(with:bytes) as? [String:Any],parsed["format"] as? String == (action == "shareBackup" ? "signalpay-encrypted-profile" : "signalpay-receipts") {
-   let file = FileManager.default.temporaryDirectory.appendingPathComponent(action == "shareBackup" ? "SignalPay-encrypted-backup.json" : "SignalPay-receipts.json")
+   let file = FileManager.default.temporaryDirectory.appendingPathComponent(action == "shareBackup" ? "SignalPay-encrypted-backup-\(UUID().uuidString).json" : "SignalPay-receipts-\(UUID().uuidString).json")
    do { try bytes.write(to:file,options:[.atomic,.completeFileProtection]); item = file } catch { showError("Could not prepare the selected share file."); return }
   } else { return }
   let sheet = UIActivityViewController(activityItems:[item],applicationActivities:nil); sheet.popoverPresentationController?.sourceView = view; present(sheet,animated:true)
@@ -117,7 +117,7 @@ final class WalletController: UIViewController, WKScriptMessageHandler, WKNaviga
   let kind = command["kind"] as? String, prefix = kind == "sent" ? "Demo payment sent." : kind == "test" ? "Sound test." : "Demo payment received."
   let utterance = AVSpeechUtterance(string:"\(prefix) \(Double(cents)/100) Pakistani rupees. This is a simulation."); utterance.voice = AVSpeechSynthesisVoice(language:"en-PK") ?? AVSpeechSynthesisVoice(language:"en-GB"); speech.speak(utterance)
  }
- func coverForPrivacy() { if cover != nil { return }; let shield = UIView(frame:view.bounds); shield.backgroundColor = .systemBackground; shield.autoresizingMask = [.flexibleWidth,.flexibleHeight]; view.addSubview(shield); cover = shield }
+ func coverForPrivacy() { if cover != nil { return }; let container: UIView = view.window ?? view; let shield = UIView(frame:container.bounds); shield.backgroundColor = .systemBackground; shield.autoresizingMask = [.flexibleWidth,.flexibleHeight]; container.addSubview(shield); cover = shield }
  func lockForBackground() { backgrounded = true; transport?.stop(); camera?.stop(); camera?.dismiss(animated:false); camera = nil; cameraRequest = nil; speech.stopSpeaking(at:.immediate); lockWebWallet() }
  private func lockWebWallet(_ completion: (() -> Void)? = nil) { webView.evaluateJavaScript("window.dispatchEvent(new Event('signalpay-native-lock'))") {_,_ in completion?()} }
  func becameActive() { if backgrounded { backgrounded = false; lockWebWallet { [weak self] in self?.cover?.removeFromSuperview(); self?.cover = nil } } else { cover?.removeFromSuperview(); cover = nil } }

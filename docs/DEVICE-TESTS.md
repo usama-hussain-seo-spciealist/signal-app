@@ -1,36 +1,37 @@
-# Two-phone acceptance sheet — not yet executed
+# Native iPhone ↔ Android acceptance — milestone OPEN
 
-Automated crypto/browser/native codec tests do **not** verify Bluetooth delivery between physical phones. No physical Android/iPhone, iPhone signing setup or TestFlight access is available to this run. All physical cases below are UNTESTED. Phase 1 iPhone→Android one-scan requirement is **not complete**.
+No physical phone pair is available to this development environment. Every physical scenario below is **UNVERIFIED**. Simulator, desktop browser and in-memory bridge tests are separate. An installed app, scanned QR, connected radio or queued write does not establish payment receipt.
 
-## Your existing Android + iPhone today
+## Prepare your two phones
 
-1. Android: install the verified APK from [installation page](https://usama-hussain-seo-spciealist.github.io/signal-app/install.html). Update over the current app; do not uninstall/clear data. From v3.2+, Updates → Check for update → Update app opens the signed APK download; Android asks you to install it. There is no silent install/push update notification.
-2. iPhone: keep the existing Safari/PWA, open online until v3.3.0 / Offline ready. No APK for iPhone. **This PWA still cannot use Bluetooth**. Do not expect a one-scan Bluetooth transfer between these two current installations. Preserve the signed multi-QR flow until a native iOS app exists.
-3. Existing optical regression: Adil/Android Receive → Usama/iPhone scans personal account QR → independently checks full ID/name → PKR 100 → review/confirm → Pending. Adil scans payment QR, checks sender/amount and Accepts. Usama scans returned receipt. Check matching ID, Adil +100, Usama −100. Repeat in reverse and with Wi-Fi/mobile data off after preparing PWA online. This is demo credit, not bank settlement.
+1. Install verified Android v3.4 over existing app. Native iOS v3.4 must be signed/installed: [no-Mac signing](IOS-SIGNING.md). Safari downloading an unsigned IPA will not install it. PWA still lacks native BLE.
+2. [Migrate existing iPhone account](MIGRATION-v3.4.md) before registering another native profile. Keep source intact; use one active copy. Adil/Android and Usama/iPhone must have different IDs.
+3. Record device models/OS/app builds, initial balances/reservations. Unlock both, Bluetooth ON, SignalPay foreground. Allow camera/Bluetooth/Nearby permission; older Android scan may require Location permission/system Location, not GPS collection. If first prompt interrupts Receive, reopen Receive/restart Bluetooth after granting it.
+4. Fully offline: airplane mode/no cellular service, Wi-Fi OFF, Bluetooth ON on both. Verify settings. Initial signing/install/refresh needs internet; payment session must not. iOS loopback asset server is inside that phone and requires neither Wi-Fi nor cellular.
 
-## Experimental native BLE test (two Android phones now; iPhone only after native host integration)
+## iPhone Usama → Android Adil, PKR100
 
-Prerequisite: both installations must expose the native BLE bridge. The Swift package is a library, **not an installable iPhone wallet**. Native iOS wallet host, matching bridge and security integration are still required. A Mac with Xcode, a configured signing team and the phone are needed for on-device installation; an Apple Personal Team may support own-device development without paid program enrollment. TestFlight distribution is a separate setup. Do not send credentials in chat. See [Apple signing guide](https://help.apple.com/xcode/mac/current/en.lproj/dev60b6fbbc7.html).
+1. Adil opens **Receive Money**: native Bluetooth starts automatically. Wait for listening, display personal QR. Keep app open; receive/session expires after two minutes, restart if needed.
+2. Usama opens **Send Money**, keeps default Bluetooth, scans Adil's account QR **once** using native camera. Only sender scans.
+3. Independently compare prefilled name/full ID with Adil, enter **100**, Review, Confirm. QR/key signatures are not verified human identity/funds.
+4. Adil gets incoming review automatically over BLE, checks sender/amount and Accepts. Adil must not scan Usama's QR. Unknown sender requires independent contact confirmation.
+5. Signed ACK returns automatically. Check both histories/receipts: same TX ID/amount/parties, sender −100 and receiver +100 relative to recorded baseline, one entry each. Sender Successful only after receipt verification. Save both screenshots and radio settings.
+6. Repeat **Android Adil → iPhone Usama**, then repeat internet ON. Use balance deltas for sequential tests; do not reset accounts. Test two native apps, not native plus PWA. Speaker output is a separate observation, not settlement evidence.
 
-1. Use separate demo accounts Adil (receiver) and Usama (sender), record initial balances, account IDs and APK version. Keep PINs private. Existing Safari/PWA data is not automatically migrated into a future native iOS app.
-2. Bluetooth ON on both, both apps foreground and unlocked. Turn Wi-Fi/mobile data OFF (Bluetooth must stay ON). Grant requested Bluetooth/Nearby permissions; older Android scans may require location permission/system Location. A denied prompt/power-off must show an error, never success. Retry Start Bluetooth after first permission grant if necessary.
-3. Adil: Receive → Start Bluetooth receive. Wait for listening. Display personal QR.
-4. Usama: Send/Scan → select Experimental Bluetooth → scan **Adil account QR once**. Check prefilled name/full ID independently, enter PKR 100, review Bluetooth mode and Confirm.
-5. Adil should receive incoming review **without scanning another QR**. Independently confirm sender if unknown; verify amount, Accept. Persisted signed ACK should return automatically.
-6. Verify same TX ID and amount, receiver +100, sender −100, each one history entry; sender Successful only after verified ACK. Inspect both receipts and save screenshots. A queued/connected status is insufficient evidence.
-7. Repeat reversed roles, and repeat with internet ON. For native iOS later, run both directions explicitly; Android success cannot certify iOS.
-
-| Physical case | Expected evidence | Status |
+| Physical case | Required outcome | Actual result |
 |---|---|---|
-| iPhone Usama → Android Adil, PKR100, offline, one scan | Matching receipts, actual BLE delivery and signed ACK | BLOCKED: native iOS wallet not installed |
-| Android Adil → iPhone Usama | Same, reverse BLE roles | BLOCKED: native iOS wallet not installed |
-| Android → Android, online/offline | One scan, receiver review, matching signed ACK | UNTESTED: two physical devices unavailable |
-| Disconnect before receiver accepts | Sender Pending/reserved, no receiver credit | UNTESTED |
-| Disconnect after receiver accepts, before sender ACK | Receiver credited once, sender Pending; same-TX reconnect returns saved receipt | UNTESTED |
-| Retry same transaction / replay receipt | No duplicate debit/credit/history or repeat success sound | UNTESTED |
-| Wrong account / altered QR / insufficient funds | No new success/balance change | UNTESTED on hardware; automated coverage exists |
-| Restart after Pending/receipt | PIN required, ID/history/receipt retained; reconnect same TX | UNTESTED on hardware; automated persistence coverage exists |
-| 120s expiry/background/logout/Bluetooth off | Keys/session closed; Pending preserved; fresh authenticated retry | UNTESTED |
-| Real iPhone installed-PWA offline cold launch, camera, speaker | Actual phone observation | UNTESTED |
+| iPhone→Android PKR100 fully offline, sender-only scan | Receiver review without camera, matching verified ACK/IDs, one debit/credit | UNVERIFIED |
+| Android→iPhone PKR100 fully offline | Same with reversed BLE roles | UNVERIFIED |
+| Both directions internet ON | Same BLE workflow, no server/bank implied | UNVERIFIED |
+| Invalid/tampered QR or wrong receiver advertising | Reject before success/balance change | UNVERIFIED |
+| Invalid amount/insufficient available funds | No new offer/overdraft | UNVERIFIED |
+| Disconnect before receiver acceptance | Sender Pending/reserved, no accepted receiver credit | UNVERIFIED |
+| Disconnect after acceptance before ACK | Receiver decision persists; sender Pending. Restart Receive and retry saved TX to return persisted ACK once | UNVERIFIED |
+| Duplicate delivery/receipt/rapid Confirm | One credit/debit/history entry, same-ID retry | UNVERIFIED |
+| Old optical Pending via Bluetooth retry | Saved receiver key checked, same TX ID, no new payment or receiver scan | UNVERIFIED |
+| Background/lock/Bluetooth OFF/expiry | Session/keys close, Pending retained; PIN/fresh connection needed | UNVERIFIED |
+| Update/restart/encrypted migration | Same account/QR/history/Pending; wrong PIN/conflict never overwrites | UNVERIFIED on hardware |
 
-Record model/OS/build, permissions, internet/Bluetooth settings, distances, timestamps, TX ID and screenshots for each run. Do not convert this sheet to PASS from browser simulation. Range, battery consumption, interference, background delivery, malicious-peer robustness and financial security require further device testing/audit. Do not start Soundbox hardware from this test build.
+Receiver local acceptance can precede sender receipt verification: receiver may have demo credit while sender stays Pending. This is not atomic settlement. Never cancel a reservation unilaterally or create a second payment to fix it. Retry the saved transaction; QR/receipt import stays recovery. Connection failure alone is not a signed rejection.
+
+Record actual model/OS/build, permissions/radio settings, distance/time, TX IDs and screenshots. Automated crypto/QR, browser bridge simulations, Android emulator, Swift framing and iOS Simulator/WKWebView do not certify physical radios, cameras/speakers, airplane mode, range/battery/interference, signing-tool upgrades or installed-PWA cold launch. No hardware-bound financial keys, OTP/backend/recovery, trusted global ledger/reconciliation or real settlement. No Soundbox hardware started.

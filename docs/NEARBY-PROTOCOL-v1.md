@@ -1,20 +1,20 @@
 # SignalPay Nearby v1 — experimental demo transport
 
-Status: foreground Android GATT adapter integrated with the existing wallet; native iOS CoreBluetooth **library foundation only**, no signed iOS host/app. Physical interoperability is unverified. Existing optical transport stays the default. No real funds, trusted monetary issuer, phone verification or banking connectivity.
+Status: foreground Android GATT adapter integrated with the existing wallet; native iOS CoreBluetooth integrated into a bundled UIKit/WKWebView test app; signing/physical install still required. Physical interoperability is unverified. Native apps default to foreground BLE; PWA uses optical recovery. No real funds, trusted monetary issuer, phone verification or banking connectivity.
 
 ## What the old extra scans do
 
 An account QR identifies a public signing key; it contains no payment. After explicit confirmation the sender persists a signed v2 offer as Pending and reserves demo funds. Scanning that new QR delivers the offer to the receiver. The receiver explicitly accepts/rejects, persists the decision and a signed receipt, and credits once on acceptance. Scanning the receipt returns that acknowledgement to the sender. Only a matching receiver-signed receipt finalizes debit/Success or rejection/Failed. These extra scans are the old delivery and return channel, not redundant identity scans.
 
-Nearby replaces offer/receipt carriage with encrypted foreground BLE, retaining those same ledger checks and explicit receiver review. It never changes Pending because a radio connects or a GATT write completes. The receiver starts Bluetooth receive and displays their existing account QR; sender scans once and selects the experimental Bluetooth option before confirmation. Receiver review/Accept is still required; receiver does not scan a second QR in this transport.
+Nearby replaces offer/receipt carriage with encrypted foreground BLE, retaining those same ledger checks and explicit receiver review. It never changes Pending because a radio connects or a GATT write completes. The receiver opens Receive to start Bluetooth automatically and displays their existing account QR; sender scans once using the default Bluetooth option before confirmation. Receiver review/Accept is still required; receiver does not scan a second QR in this transport.
 
 ## Platforms
 
 | Pair | Foundation | Current deployable status |
 |---|---|---|
 | Android ↔ Android | Native GATT central/peripheral, bundled wallet | Experimental APK; physical delivery not verified |
-| Android ↔ native iOS | Matching CoreBluetooth central/peripheral library | Needs iOS wallet host, signing/install and two-phone tests |
-| Native iOS ↔ native iOS | Same library/protocol design | Same missing iOS host/install and physical tests |
+| Android ↔ native iOS | Matching CoreBluetooth central/peripheral library | Native host implemented; needs signing/install and two-phone tests |
+| Native iOS ↔ native iOS | Same library/protocol design | Native host implemented; signing/install and physical tests outstanding |
 | iPhone Safari/PWA ↔ any BLE device | No native bridge in this app | Unsupported; existing optical QR fallback only |
 
 Web Bluetooth is not a usable bridge for the installed iPhone Safari/PWA. Native iOS code is required. Do not promise web updates can add CoreBluetooth to Safari. Foreground only: keep Bluetooth on and both apps open; Wi-Fi/mobile data may be off. There is no universal background delivery, pairing guarantee, NFC, local-network or cloud transport.
@@ -52,3 +52,5 @@ Experimental Nearby demo amount limit PKR 1,000, enforced on both receive and se
 Cloned/restored/tampered local state can double-spend demo balances. Device-bound Keystore/Keychain, issuer-signed offline value, spending budgets, trusted counters, revocation/conflict resolution, risk controls and independent audit are future work. Encryption and signatures alone cannot make a local balance real money.
 
 Platform references: [Android permissions](https://developer.android.com/develop/connectivity/bluetooth/bt-permissions), [Android GATT](https://developer.android.com/develop/connectivity/bluetooth/ble/transfer-ble-data), [CoreBluetooth](https://developer.apple.com/documentation/corebluetooth/cbperipheralmanager), [iOS background constraints](https://developer.apple.com/library/archive/documentation/NetworkingInternetWeb/Conceptual/CoreBluetooth_concepts/CoreBluetoothBackgroundProcessingForIOSApps/PerformingTasksWhileYourAppIsInTheBackground.html), [WebKit Web Bluetooth issue](https://bugs.webkit.org/show_bug.cgi?id=238049).
+
+Native iOS v3.4 bundles the same protocol in a stable loopback WKWebView, uses AVFoundation camera, stops/locks on background, and supports encrypted add-only profile migration. No Keychain device binding or trusted financial value is implied. Legacy Pending retry may use the saved audited peer ID/key instead of a retained account card: the fresh signed hello must match both, then its verified account card is persisted before sending the original offer. No new TX ID is created. [Migration](MIGRATION-v3.4.md).

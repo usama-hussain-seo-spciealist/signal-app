@@ -37,10 +37,11 @@
   const pair=await ephemeral(),sid=random(),hello=await sign({v:1,t:'receiver',sid,qr:wallet.accountQR,ephemeral:pair.publicKey,nonce:random()},wallet),deadline=Date.now()+LIFETIME;let used=false;
   return {hello,async finish(raw){if(used||Date.now()>deadline)throw Error('Nearby handshake expired or already used.');used=true;const p=await verify(raw,'sender');if(p.body.sid!==sid||p.body.helloHash!==await A.digest(hello)||p.account.id===wallet.account.id)throw Error('Nearby sender/session mismatch.');return {peer:p.account,channel:await channel(pair,p.body.ephemeral,hello,raw,'receiver',sid)};}};
  }
+ // Legacy retry may supply an audited saved peer identity; both ID and key must match the signed hello.
  async function sender(wallet,receiverQR,hello){
-  const expected=await A.verify(receiverQR),p=await verify(hello,'receiver');if(expected.body.t!=='account'||expected.body.account.id!==p.account.id||expected.body.account.k!==p.account.k||p.account.id===wallet.account.id)throw Error('Nearby device does not match the scanned receiver.');
+  const expected=typeof receiverQR==='string'?(await A.verify(receiverQR)).body.account:receiverQR,p=await verify(hello,'receiver');if(!expected||expected.id!==p.account.id||expected.k!==p.account.k||p.account.id===wallet.account.id)throw Error('Nearby device does not match the scanned receiver.');
   const pair=await ephemeral(),reply=await sign({v:1,t:'sender',sid:p.body.sid,helloHash:await A.digest(hello),qr:wallet.accountQR,ephemeral:pair.publicKey,nonce:random()},wallet);
-  return {reply,peer:p.account,channel:await channel(pair,p.body.ephemeral,hello,reply,'sender',p.body.sid)};
+  return {reply,receiverQR:p.body.qr,peer:p.account,channel:await channel(pair,p.body.ephemeral,hello,reply,'sender',p.body.sid)};
  }
  const api={receiver,sender,serviceUUID,verify,LIFETIME};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.SignalNearbySession=api;
 })(typeof window!=='undefined'?window:globalThis);

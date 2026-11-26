@@ -2,9 +2,9 @@
 
 The existing SignalPay GitHub Pages app and Android APK now start at registration/login. No new application repository, real funds, banking connection, phone OTP provider or central authentication/sync service exists.
 
-## v3.3 experimental native Bluetooth foundation
+## v3.4 native iOS/Android test apps and migration
 
-[Protocol and platform matrix](docs/NEARBY-PROTOCOL-v1.md) · [Exact two-phone test steps](docs/DEVICE-TESTS.md) · [Master plan status](docs/MASTER-PLAN-STATUS.md). Android adds opt-in foreground BLE offer/receipt delivery with mutually authenticated ephemeral encryption and the same signed wallet ACK checks. Default optical recovery remains. Native iOS CoreBluetooth library source is included, **not an installable iOS app**. Current Safari/PWA cannot use BLE: iPhone→Android one-scan is not complete. Physical Bluetooth delivery is unverified. No real funds or identity verification.
+[Protocol and platform matrix](docs/NEARBY-PROTOCOL-v1.md) · [Exact two-phone test steps](docs/DEVICE-TESTS.md) · [Master plan status](docs/MASTER-PLAN-STATUS.md). Android adds opt-in foreground BLE offer/receipt delivery with mutually authenticated ephemeral encryption and the same signed wallet ACK checks. Native Bluetooth is the default in native apps; optical recovery remains. Native iOS now includes a bundled wallet host, AVFoundation camera and CoreBluetooth integration, with an unprovisioned iPhoneOS signing package and simulator tests. Signing/install and real iPhone→Android one-scan verification remain outstanding. Current Safari/PWA cannot use BLE. Physical Bluetooth delivery is unverified. No real funds or identity verification.
 
 ## Registration and PIN login
 
@@ -67,3 +67,5 @@ Audio policy references: https://webkit.org/blog/6784/new-video-policies-for-ios
 The Updates button is available before and after login. Android uses an origin-restricted native message listener to request only the fixed public release metadata URL over HTTPS on a worker thread; remote pages/scripts remain blocked in the WebView. Requests are correlated, timed out, and bounded to 16 KB. No wallet data is sent. The UI validates the release verification flag, exact versioned repository APK URL, checksum/size and a strictly newer semantic version before offering Update app. Same/older, malformed, unverified and offline responses do not offer a download. Android opens the APK URL through the browser and still requires its normal download/install confirmation. No silent installation, new install permission or new signing key is introduced.
 
 Existing APKs must install this version once to acquire the button. Later APK releases can be discovered from inside this installation; opening the public website cannot replace old bundled APK code. Do not uninstall or clear app data. Web/iPhone installations check a network-only app-version.json and can request a normal service-worker update plus a user-triggered online reload. Saved encrypted accounts/history remain in IndexedDB; unsaved form state closes on reload.
+
+[No-Mac iOS signing/costs](docs/IOS-SIGNING.md) · [Encrypted account migration](docs/MIGRATION-v3.4.md). Existing local profiles are kept; source backups are copied, never silently erased or merged. Use one active demo installation.
