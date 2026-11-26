@@ -1,6 +1,6 @@
 (function(root){
  'use strict';
- const CURRENT='3.3.0',BASE='https://usama-hussain-seo-spciealist.github.io/signal-app/';
+ const CURRENT='3.4.0',BASE='https://usama-hussain-seo-spciealist.github.io/signal-app/';
  function version(value){if(typeof value!=='string'||!/^(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})$/.test(value))throw Error('Invalid update version.');return value.split('.').map(Number);}
  function compare(a,b){const x=version(a),y=version(b);for(let i=0;i<3;i++)if(x[i]!==y[i])return x[i]>y[i]?1:-1;return 0;}
  function validateRelease(release){
@@ -20,6 +20,7 @@
   async function check(){
    if(busy)return;busy=true;$('checkUpdates').disabled=true;$('updateAPK').hidden=true;$('updateAPK').removeAttribute('href');$('refreshApp').hidden=true;$('updateChecksum').textContent='';$('latestVersion').textContent='Checking…';$('updateStatus').textContent='Checking for an update. Internet is required.';
    try{
+    if(win.SignalNativeIOS){$('latestVersion').textContent='Signed iOS build required';$('updateStatus').textContent='Native iOS updates require a newly signed test build installed over this app using the same signing team and bundle ID. Keep your encrypted backup and PIN. Safari cannot update this installed Bluetooth app.';return;}
     if(isAPK){const data=await nativeCheck(),installed=String(data.currentVersion).replace(/-debug$/,'');version(installed);const release=validateRelease(data.release);$('installedVersion').textContent=installed;$('latestVersion').textContent=release.version;
      if(compare(release.version,installed)>0){$('updateAPK').href=release.url;$('updateAPK').hidden=false;$('updateChecksum').textContent='SHA-256: '+release.sha256;$('updateStatus').textContent='Update v'+release.version+' is available. Tap Update app to download it, then follow Android’s installation confirmation. Install over this app to keep your saved accounts and history.';}
      else $('updateStatus').textContent=compare(release.version,installed)===0?'You’re up to date. No newer Android APK is available.':'This installation is newer than the latest published APK. No downgrade is offered.';

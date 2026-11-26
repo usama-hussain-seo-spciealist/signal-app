@@ -9,3 +9,8 @@ android/app/src/main/assets/www/
 *.p12
 *.jks
 *.keystore
+
+native-ios/www/
+native-ios/build/
+ios-dist/
+**/xcuserdata/

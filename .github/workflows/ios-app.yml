@@ -1,0 +1,58 @@
+name: Native iOS test app
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, native-ios-v34]
+    paths: ['native-ios/**', '*.js', '*.html', '*.css', 'scripts/**', 'test-qrs/**', '.github/workflows/ios-app.yml']
+permissions:
+  contents: read
+jobs:
+  build-simulator-test:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Bundle existing wallet for offline iOS launch
+        run: node scripts/package-ios.cjs
+      - name: Test CoreBluetooth shared framing
+        run: swift test --package-path native-ios
+      - name: Select available iPhone simulator
+        run: |
+          python3 - <<'PY'
+          import json,subprocess,os
+          devices=json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','-j']))['devices']
+          candidates=[d for runtime,rows in sorted(devices.items(),reverse=True) if '.iOS-' in runtime for d in rows if d.get('isAvailable') and 'iPhone' in d['name']]
+          assert candidates,'No iPhone simulator available'
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('SIMULATOR_ID='+candidates[0]['udid']+'\n')
+          print('Selected available iPhone simulator:',candidates[0]['name'])
+          PY
+      - name: Native iOS simulator wallet and lifecycle tests
+        run: |
+          mkdir -p ios-dist
+          set -o pipefail
+          xcodebuild -project native-ios/SignalPay.xcodeproj -scheme SignalPay -configuration Debug -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath "$RUNNER_TEMP/signalpay-ios-simulator" -resultBundlePath ios-dist/SignalPay-simulator.xcresult CODE_SIGNING_ALLOWED=NO test | tee ios-dist/simulator-build.log
+      - name: Build unprovisioned arm64 iPhone signing package
+        run: |
+          set -o pipefail
+          xcodebuild -project native-ios/SignalPay.xcodeproj -scheme SignalPay -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/signalpay-ios-device" CODE_SIGNING_ALLOWED=NO build | tee ios-dist/device-build.log
+          mkdir -p ios-dist/Payload
+          cp -R "$RUNNER_TEMP/signalpay-ios-device/Build/Products/Release-iphoneos/SignalPay.app" ios-dist/Payload/
+          xcrun lipo -archs ios-dist/Payload/SignalPay.app/SignalPay | tee ios-dist/architectures.txt
+          test "$(cat ios-dist/architectures.txt)" = arm64
+          xcrun vtool -show-build ios-dist/Payload/SignalPay.app/SignalPay | tee ios-dist/device-platform.txt
+          grep -E 'platform[[:space:]]+IOS$' ios-dist/device-platform.txt
+          /usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' ios-dist/Payload/SignalPay.app/Info.plist | grep '^com.signalpay.demo.ios$'
+          test ! -e ios-dist/Payload/SignalPay.app/embedded.mobileprovision
+          (cd ios-dist && zip -qr SignalPay-demo-ios-3.4.0-unsigned.ipa Payload && shasum -a 256 SignalPay-demo-ios-3.4.0-unsigned.ipa > SHA256SUMS-iOS.txt)
+          printf '%s\n' 'UNPROVISIONED iPhoneOS arm64 build. Requires Apple signing before installation. Not TestFlight, not directly installable, no physical phone/radio tests.' > ios-dist/SIGNING-REQUIRED.txt
+      - name: Save iOS signing package and actual simulator reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: SignalPay-iOS-test-build
+          path: |
+            ios-dist/*.ipa
+            ios-dist/*.txt
+            ios-dist/*.log
+            ios-dist/*.xcresult
+          if-no-files-found: warn

@@ -84,7 +84,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setGeolocationEnabled(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/3.3.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/3.4.0");
         WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
         webView.setWebViewClient(new WebViewClient() {
@@ -175,6 +175,14 @@ public class MainActivity extends Activity {
                 if (!mainFrame || !isTrustedOrigin(source) || !isLocal(Uri.parse(view.getUrl()))) return;
                 try {
                     JSONObject data = new JSONObject(message.getData());
+                    if ("shareBackup".equals(data.optString("action"))) {
+                        String json = data.optString("json");
+                        if (json.length() > 5000000) return;
+                        JSONObject backup = new JSONObject(json);
+                        if (!"signalpay-encrypted-profile".equals(backup.optString("format")) || backup.optInt("v") != 1 || !backup.has("record")) return;
+                        shareFile("SignalPay-encrypted-backup.json", json.getBytes(java.nio.charset.StandardCharsets.UTF_8), "application/json");
+                        return;
+                    }
                     if ("shareReceipts".equals(data.optString("action"))) {
                         String json = data.optString("json");
                         if (json.length() > 250000) return;

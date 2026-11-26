@@ -1,5 +1,6 @@
 (function(root){
  'use strict';
+ const M=typeof module!=='undefined'&&module.exports?require('./migration-core.js'):root.SignalMigration;
  function openVault(indexedDB,A,C){
   let session=null,generation=0;
   const ready=new Promise((resolve,reject)=>{const r=indexedDB.open('signalpay-login-v3',1);r.onupgradeneeded=()=>{const p=r.result.createObjectStore('profiles',{keyPath:'id'});p.createIndex('phoneHash','phoneHash',{unique:true});r.result.createObjectStore('directory',{keyPath:'id'});};r.onsuccess=()=>{r.result.onversionchange=()=>{lock();r.result.close();};resolve(r.result);};r.onerror=()=>reject(new Error('Persistent account storage is unavailable. No temporary account will be created.'));r.onblocked=()=>reject(new Error('Close other SignalPay tabs and reopen.'));});
@@ -65,7 +66,23 @@
   }
   async function syncInfo(){const {payload}=await data();return {queued:payload.sync.inbox.length,pending:payload.wallet.data.transactions.filter(t=>t.direction==='out'&&t.status==='Pending').length,cloudConfigured:false};}
   async function receipts(){return (await read()).transactions.filter(t=>t.direction==='in'&&t.receiptRaw).map(t=>t.receiptRaw);}
-  return {create,unlock,lock,count,read,update,profile,resolveAccount,remember,trustAccount,queueReceipts,reconcile,syncInfo,receipts,isUnlocked:()=>current(session),activeId:()=>session&&session.id,lease,sessionStamp:()=>session?generation:null};
+  async function exportBackup(){const check=lease(),{row}=await data();check();return M.pack(row);}
+  async function restoreBackup(raw,mobile,pin){
+   if(current(session))throw Error('Log out before restoring another installation’s encrypted backup.');
+   lock();const token=generation,row=M.parse(raw),hash=await C.phoneHash(mobile);
+   if(hash!==row.phoneHash)throw Error('This mobile number does not match the encrypted backup.');
+   if(await get('profiles',row.id)||await get('profiles',hash,'phoneHash'))throw Error('This account or mobile already exists here. Log in to the existing profile. Restore never overwrites saved data.');
+   const key=await C.derive(String(pin),row.salt),payload=await C.open(row,key),wallet=await M.validatePayload(payload,row,mobile);
+   if(token!==generation||current(session))throw Error('Restore cancelled because the account session changed.');
+   const db=await ready;await new Promise((resolve,reject)=>{const tx=db.transaction(['profiles','directory'],'readwrite');
+    if(token!==generation||current(session)){tx.abort();return;}
+    tx.objectStore('profiles').add(row);tx.objectStore('directory').add({id:row.id,qr:wallet.accountQR,source:'local-registration'});
+    tx.oncomplete=resolve;tx.onabort=()=>reject(Error('Restore could not be saved, or this account/mobile already exists. No existing profile was overwritten.'));tx.onerror=()=>{};
+   });
+   if(token!==generation)throw Error('Backup saved. Log in to the restored account to continue.');
+   session={id:row.id,key,privateKey:wallet.privateKey,marker:marker(row.id)};return wallet;
+  }
+  return {exportBackup,restoreBackup,create,unlock,lock,count,read,update,profile,resolveAccount,remember,trustAccount,queueReceipts,reconcile,syncInfo,receipts,isUnlocked:()=>current(session),activeId:()=>session&&session.id,lease,sessionStamp:()=>session?generation:null};
  }
  if(typeof module!=='undefined'&&module.exports)module.exports={openVault};else root.SignalAuthStore={openVault};
 })(typeof window!=='undefined'?window:globalThis);

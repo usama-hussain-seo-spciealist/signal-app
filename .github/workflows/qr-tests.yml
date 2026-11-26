@@ -2,7 +2,7 @@ name: QR browser verification
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, native-ios-v34]
     paths: ['*.js', '*.cjs', '*.html', '*.css', 'test-qrs/**', 'browser-tests/**', 'scripts/**', 'android/**', 'native-ios/**', 'package*.json', '.github/workflows/android-apk.yml', '.github/workflows/qr-tests.yml']
 permissions:
   contents: read

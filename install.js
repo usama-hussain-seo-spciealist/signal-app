@@ -58,7 +58,7 @@
       if (release.buildUrl?.startsWith('https://github.com/usama-hussain-seo-spciealist/signal-app/actions/runs/')) build.href = release.buildUrl;
     }).catch(() => { document.getElementById('apkStatus').textContent = 'APK download is unavailable right now. Use Open demo or try again online.'; });
   }
-  if ('serviceWorker' in navigator && window.isSecureContext && location.hostname !== 'appassets.androidplatform.net') {
+  if ('serviceWorker' in navigator && window.isSecureContext && location.hostname !== 'appassets.androidplatform.net' && !window.SignalNativeIOS) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' })
         .then(() => navigator.serviceWorker.ready)

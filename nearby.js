@@ -59,8 +59,9 @@ const nearby=(()=>{
   }
  }
  if(bridge)bridge.onmessage=event=>{let value;try{value=JSON.parse(event.data);}catch(_){stop('Malformed native Bluetooth response.');return;}const token=generation;queue=queue.then(()=>{if(token===generation)return handle(value);}).catch(error=>{if(token===generation)stop(error.message||'Bluetooth session failed. Pending state retained.');});};
- $('useNearby').disabled=!supported();$('startNearbyReceive').disabled=!supported();$('nearbyCapability').textContent=supported()?'Experimental native foreground BLE. Hardware interoperability is unverified. Leave off to use the existing QR transport.':'Native Bluetooth unavailable in this Safari/PWA/browser installation. iPhone needs a signed native Core Bluetooth app; its setup is not configured.';
+ $('useNearby').checked=supported();$('useNearby').disabled=!supported();$('startNearbyReceive').disabled=!supported();$('nearbyCapability').textContent=supported()?'Experimental native foreground BLE. Hardware interoperability is unverified. Leave off to use the existing QR transport.':'Native Bluetooth unavailable in this Safari/PWA/browser installation. iPhone needs a signed native Core Bluetooth app; its setup is not configured.';
  $('startNearbyReceive').addEventListener('click',()=>listen().catch(e=>status(e.message)));$('stopNearby').addEventListener('click',()=>stop('Bluetooth session stopped. Saved payments and receipts were kept.'));
+ ['receive','navReceive'].forEach(id=>$(id).addEventListener('click',()=>{if(supported()&&!state)listen().catch(e=>status(e.message));}));
  $('retryNearby').addEventListener('click',()=>sendPending(activeTransfer).catch(e=>status(e.message)));
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stop('Bluetooth stopped when the app left the foreground. Reopen and retry the same pending transaction.');});
  return {supported,listen,sendPending,receiptReady,stop,status};
