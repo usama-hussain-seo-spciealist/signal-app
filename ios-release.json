@@ -1,1 +1,16 @@
-{"buildVerified":false,"signedForDevice":false,"signingRequired":true,"physicalDeviceTested":false,"version":"3.4.0"}
+{
+  "buildVerified": true,
+  "signedForDevice": false,
+  "signingRequired": true,
+  "physicalDeviceTested": false,
+  "version": "3.4.0",
+  "url": "https://github.com/usama-hussain-seo-spciealist/signal-app/releases/download/ios-v3.4.0/SignalPay-demo-ios-3.4.0-unsigned.ipa",
+  "bytes": 420751,
+  "sha256": "26681b018f7310e2cd1cecb890fcdd32e4e28c3bf7112b4d5f6ca34f1b4d133d",
+  "releaseUrl": "https://github.com/usama-hussain-seo-spciealist/signal-app/releases/tag/ios-v3.4.0",
+  "buildUrl": "https://github.com/usama-hussain-seo-spciealist/signal-app/actions/runs/45785001179",
+  "sourceCommit": "4844229c2e402d154e2c966a3664b23a9ccf2ff4",
+  "simulatorTestsPassed": 6,
+  "sharedFrameTestsPassed": 4,
+  "verifiedAt": "2026-11-26T08:48:42.688Z"
+}
