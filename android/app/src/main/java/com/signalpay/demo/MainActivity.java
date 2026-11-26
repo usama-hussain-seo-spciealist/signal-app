@@ -46,6 +46,7 @@ public class MainActivity extends Activity {
     static final String START = ORIGIN + "/assets/www/index.html";
     private static final int CAMERA_REQUEST = 77, FILE_REQUEST = 78;
     private WebView webView;
+    private NearbyBle nearbyBle;
     private PermissionRequest pendingCamera;
     private ValueCallback<Uri[]> fileResult;
     private TextToSpeech speech;
@@ -83,7 +84,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setGeolocationEnabled(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/3.2.2");
+        settings.setUserAgentString(settings.getUserAgentString() + " SignalPayAndroid/3.3.0");
         WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
         webView.setWebViewClient(new WebViewClient() {
@@ -134,7 +135,16 @@ public class MainActivity extends Activity {
                 if (language < 0) speech.setLanguage(Locale.US);
             }
         });
+        nearbyBle = new NearbyBle(this, event -> {
+            if (!isFinishing() && !isDestroyed() && webView != null && isLocal(Uri.parse(webView.getUrl())))
+                webView.evaluateJavascript("window.SignalNearby&&window.SignalNearby.onmessage&&window.SignalNearby.onmessage({data:" + JSONObject.quote(event.toString()) + "})", null);
+        });
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(webView, "SignalNearby", Collections.singleton(ORIGIN), (view, message, source, mainFrame, reply) -> {
+                if (!mainFrame || !isTrustedOrigin(source) || !isLocal(Uri.parse(view.getUrl()))) return;
+                try { String raw = message.getData(); if (raw != null && raw.length() < 12000) nearbyBle.dispatch(new JSONObject(raw)); } catch (Exception ignored) { }
+            });
+
             WebViewCompat.addWebMessageListener(webView, "SignalUpdater", Collections.singleton(ORIGIN), (view, message, source, mainFrame, reply) -> {
                 if (!mainFrame || !isTrustedOrigin(source) || !isLocal(Uri.parse(view.getUrl()))) return;
                 try {
@@ -241,6 +251,7 @@ public class MainActivity extends Activity {
     WebView getDemoWebView() { return webView; }
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == NearbyBle.PERMISSION && nearbyBle != null) { nearbyBle.permissionResult(); return; }
         if (requestCode == CAMERA_REQUEST && pendingCamera != null) {
             PermissionRequest request = pendingCamera; pendingCamera = null;
             if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED && isLocal(Uri.parse(webView.getUrl()))) request.grant(new String[] { PermissionRequest.RESOURCE_VIDEO_CAPTURE });
@@ -255,6 +266,7 @@ public class MainActivity extends Activity {
     }
     @Override protected void onSaveInstanceState(Bundle state) { webView.saveState(state); super.onSaveInstanceState(state); }
     @Override protected void onPause() {
+        if (nearbyBle != null && !nearbyBle.awaitingPermission()) nearbyBle.stop();
         if (pendingCamera == null) webView.evaluateJavascript("if(typeof stopCamera==='function')stopCamera();", null);
         webView.onPause(); if (speech != null) speech.stop(); super.onPause();
     }
@@ -262,6 +274,7 @@ public class MainActivity extends Activity {
     @Override protected void onStop() { if (pendingCamera != null) { pendingCamera.deny(); pendingCamera = null; } super.onStop(); }
     @Override public void onBackPressed() { if (webView.canGoBack()) webView.goBack(); else super.onBackPressed(); }
     @Override protected void onDestroy() {
+        if (nearbyBle != null) nearbyBle.stop();
         if (pendingCamera != null) pendingCamera.deny();
         if (fileResult != null) fileResult.onReceiveValue(null);
         if (speech != null) { speech.stop(); speech.shutdown(); }

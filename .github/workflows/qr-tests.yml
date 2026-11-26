@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['*.js', '*.cjs', '*.html', '*.css', 'test-qrs/**', 'browser-tests/**', 'scripts/**', 'android/**', 'package*.json', '.github/workflows/android-apk.yml', '.github/workflows/qr-tests.yml']
+    paths: ['*.js', '*.cjs', '*.html', '*.css', 'test-qrs/**', 'browser-tests/**', 'scripts/**', 'android/**', 'native-ios/**', 'package*.json', '.github/workflows/android-apk.yml', '.github/workflows/qr-tests.yml']
 permissions:
   contents: read
 jobs:
@@ -24,3 +24,11 @@ jobs:
           path: |
             browser-results/
             test-results/
+
+  ios-foundation:
+    runs-on: macos-14
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Compile CoreBluetooth foundation and test shared framing
+        run: swift test --package-path native-ios

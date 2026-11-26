@@ -1,5 +1,5 @@
 {
   "private": true,
-  "scripts": { "test": "node --test core.test.cjs install.test.cjs scanner.test.cjs sw-release.test.cjs account.test.cjs auth.test.cjs soundbox.test.cjs updates.test.cjs", "test:browser": "playwright test" },
+  "scripts": { "test": "node --test core.test.cjs install.test.cjs scanner.test.cjs sw-release.test.cjs account.test.cjs auth.test.cjs soundbox.test.cjs updates.test.cjs nearby.test.cjs", "test:browser": "playwright test" },
   "devDependencies": { "@playwright/test": "1.65.1" }
 }
