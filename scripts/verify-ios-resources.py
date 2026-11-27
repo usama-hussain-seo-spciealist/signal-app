@@ -5,7 +5,7 @@ The manifest is a packaging integrity check, not a replacement for Apple signing
 """
 from pathlib import Path, PurePosixPath
 from html.parser import HTMLParser
-from urllib.parse import urlsplit, unquote
+from urllib.parse import urlsplit, urljoin, unquote
 import argparse, hashlib, json, plistlib, stat, tempfile, zipfile
 
 REQUIRED = {'index.html','styles.css','app.js','core.js','account-core.js','account-store.js',
@@ -62,7 +62,9 @@ def verify_app(app, source=None, expected_version='3.4.1'):
  for ref in refs:
   parsed=urlsplit(ref)
   if parsed.scheme or parsed.netloc:raise AssertionError('Remote runtime asset: '+ref)
-  path=unquote(parsed.path).removeprefix('/signal-app/')
+  resolved=urlsplit(urljoin('https://bundled.invalid/signal-app/',ref))
+  assert resolved.netloc=='bundled.invalid' and resolved.path.startswith('/signal-app/'),'Reference escapes project: '+ref
+  path=unquote(resolved.path[len('/signal-app/'):])
   safe(path);assert path in names,'Referenced asset absent: '+ref
  return {'passed':True,'nativeVersion':info['CFBundleShortVersionString'],'build':info['CFBundleVersion'],
   'bundleIdentifier':info['CFBundleIdentifier'],'assetsVerified':len(entries),'sourceFilesMatched':source_matches,
