@@ -12,8 +12,11 @@ final class BundleServer {
  private var callbacks: [(Error?) -> Void] = []
  private var ready = false
  private init() {}
+ static var resourceRoot: URL? { Bundle.main.resourceURL?.appendingPathComponent("www",isDirectory:true) }
  func start(completion: @escaping (Error?) -> Void) {
   dispatchPrecondition(condition: .onQueue(.main))
+  do { guard let root = Self.resourceRoot else { throw BundleAssets.Failure.missing("www") }; try BundleAssets.validate(root:root) }
+  catch { completion(error); return }
   if ready { completion(nil); return }; callbacks.append(completion); if listener != nil { return }
   do {
    let params = NWParameters.tcp
@@ -56,9 +59,13 @@ final class BundleServer {
   guard parts.count == 3, parts[0] == "GET", parts[2] == "HTTP/1.1",
         lines.dropFirst().contains(where: {$0.lowercased() == "host: 127.0.0.1:18743"}),
         let relative = Self.relativeAsset(target: String(parts[1])),
-        let root = Bundle.main.resourceURL?.appendingPathComponent("www", isDirectory: true) else { return reply(403, "Blocked") }
-  let url = root.appendingPathComponent(relative).standardizedFileURL
-  guard url.path.hasPrefix(root.path + "/"), let data = try? Data(contentsOf: url), data.count < 8_000_000 else { return reply(404, "Missing bundled file") }
+        let root = Self.resourceRoot else { return reply(403, "Blocked") }
+  let data: Data
+  do { data = try BundleAssets.data(root:root,relative:relative) }
+  catch BundleAssets.Failure.invalidPath { return reply(403,"Blocked bundled path") }
+  catch BundleAssets.Failure.outsideBundle { return reply(403,"Blocked bundled path") }
+  catch { return reply(404,"Missing bundled asset: "+relative) }
+  let url = root.appendingPathComponent(relative)
   let mime = ["html":"text/html; charset=utf-8", "js":"application/javascript", "css":"text/css", "json":"application/json", "png":"image/png", "svg":"image/svg+xml", "wav":"audio/wav", "webmanifest":"application/manifest+json"][url.pathExtension] ?? "application/octet-stream"
   return reply(200, data, mime)
  }

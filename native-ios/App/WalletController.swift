@@ -32,7 +32,7 @@ final class WalletController: UIViewController, WKScriptMessageHandler, WKNaviga
   NSLayoutConstraint.activate([webView.leadingAnchor.constraint(equalTo:view.leadingAnchor),webView.trailingAnchor.constraint(equalTo:view.trailingAnchor),webView.topAnchor.constraint(equalTo:view.safeAreaLayoutGuide.topAnchor),webView.bottomAnchor.constraint(equalTo:view.bottomAnchor)])
   BundleServer.shared.start { [weak self] error in
    guard let self else { return }
-   if error != nil { self.showError("Bundled wallet could not open. Close other SignalPay instances and retry. No remote wallet or new account was substituted.") }
+   if let error { self.showError("Installed wallet could not open: \(error.localizedDescription) Your saved account was not reset. Update the signed app in place; keep the old app/data.") }
    else { self.webView.load(URLRequest(url:BundleServer.home)) }
   }
  }

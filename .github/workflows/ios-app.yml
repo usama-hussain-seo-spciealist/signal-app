@@ -6,6 +6,8 @@ on:
     paths: ['native-ios/**', '*.js', '*.html', '*.css', 'scripts/**', 'test-qrs/**', '.github/workflows/ios-app.yml']
 permissions:
   contents: read
+env:
+  IOS_VERSION: 3.4.1
 jobs:
   build-simulator-test:
     runs-on: macos-15
@@ -15,22 +17,33 @@ jobs:
       - name: Bundle existing wallet for offline iOS launch
         run: node scripts/package-ios.cjs
       - name: Test CoreBluetooth shared framing
-        run: swift test --package-path native-ios
-      - name: Select available iPhone simulator
+        run: |
+          mkdir -p ios-dist
+          set -o pipefail
+          swift test --package-path native-ios | tee ios-dist/swift-assets-and-framing.log
+          python3 scripts/test-ios-resources.py
+      - name: Create clean disposable iPhone simulator
         run: |
           python3 - <<'PY'
           import json,subprocess,os
           devices=json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','-j']))['devices']
           candidates=[d for runtime,rows in sorted(devices.items(),reverse=True) if '.iOS-' in runtime for d in rows if d.get('isAvailable') and 'iPhone' in d['name']]
           assert candidates,'No iPhone simulator available'
-          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('SIMULATOR_ID='+candidates[0]['udid']+'\n')
-          print('Selected available iPhone simulator:',candidates[0]['name'])
+          selected=candidates[0]
+          runtime=next(r for r,rows in devices.items() if selected in rows)
+          types=json.loads(subprocess.check_output(['xcrun','simctl','list','devicetypes','-j']))['devicetypes']
+          device_type=next(d['identifier'] for d in types if d['name']==selected['name'])
+          fresh=subprocess.check_output(['xcrun','simctl','create','SignalPay-Clean-Release',device_type,runtime],text=True).strip()
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('SIMULATOR_ID='+fresh+'\n')
+          print('Created fresh simulator:',selected['name'],runtime,fresh)
           PY
-      - name: Native iOS simulator wallet and lifecycle tests
+      - name: Release simulator wallet and clean production launch tests
         run: |
           mkdir -p ios-dist
           set -o pipefail
-          xcodebuild -project native-ios/SignalPay.xcodeproj -scheme SignalPay -configuration Debug -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath "$RUNNER_TEMP/signalpay-ios-simulator" -resultBundlePath ios-dist/SignalPay-simulator.xcresult CODE_SIGNING_ALLOWED=NO test | tee ios-dist/simulator-build.log
+          xcodebuild -project native-ios/SignalPay.xcodeproj -scheme SignalPay -configuration Release -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -parallel-testing-enabled NO -derivedDataPath "$RUNNER_TEMP/signalpay-ios-simulator" -resultBundlePath ios-dist/SignalPay-simulator.xcresult CODE_SIGNING_ALLOWED=NO ENABLE_TESTABILITY=YES test | tee ios-dist/simulator-build.log
+          python3 scripts/verify-ios-resources.py --app "$RUNNER_TEMP/signalpay-ios-simulator/Build/Products/Release-iphonesimulator/SignalPay.app" --source-root . --report ios-dist/simulator-resources.json
+          xcrun xcresulttool export attachments --path ios-dist/SignalPay-simulator.xcresult --output-path ios-dist/screenshots
       - name: Build unprovisioned arm64 iPhone signing package
         run: |
           set -o pipefail
@@ -43,7 +56,9 @@ jobs:
           grep -E 'platform[[:space:]]+IOS$' ios-dist/device-platform.txt
           /usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' ios-dist/Payload/SignalPay.app/Info.plist | grep '^com.signalpay.demo.ios$'
           test ! -e ios-dist/Payload/SignalPay.app/embedded.mobileprovision
-          (cd ios-dist && zip -qr SignalPay-demo-ios-3.4.0-unsigned.ipa Payload && shasum -a 256 SignalPay-demo-ios-3.4.0-unsigned.ipa > SHA256SUMS-iOS.txt)
+          python3 scripts/verify-ios-resources.py --app ios-dist/Payload/SignalPay.app --source-root . --report ios-dist/device-resources.json
+          (cd ios-dist && zip -qr "SignalPay-demo-ios-$IOS_VERSION-unsigned.ipa" Payload && shasum -a 256 "SignalPay-demo-ios-$IOS_VERSION-unsigned.ipa" > SHA256SUMS-iOS.txt)
+          python3 scripts/verify-ios-resources.py --ipa "ios-dist/SignalPay-demo-ios-$IOS_VERSION-unsigned.ipa" --source-root . --report ios-dist/ipa-resources.json
           printf '%s\n' 'UNPROVISIONED iPhoneOS arm64 build. Requires Apple signing before installation. Not TestFlight, not directly installable, no physical phone/radio tests.' > ios-dist/SIGNING-REQUIRED.txt
       - name: Save iOS signing package and actual simulator reports
         if: always()
@@ -55,6 +70,8 @@ jobs:
             ios-dist/*.txt
             ios-dist/*.log
             ios-dist/*.xcresult
+            ios-dist/*.json
+            ios-dist/screenshots/
           if-no-files-found: warn
 
   publish-signing-package:
@@ -73,7 +90,7 @@ jobs:
         run: |
           for attempt in $(seq 1 80); do
             result=$(gh run list --workflow qr-tests.yml --branch main --commit "$GITHUB_SHA" --limit 1 --json status,conclusion --jq '.[0] | [.status, .conclusion] | @tsv')
-            tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/ios-v3.4.0" --jq '.object.sha' 2>/dev/null || true)
+            tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/ios-v$IOS_VERSION" --jq '.object.sha' 2>/dev/null || true)
             if [ "$result" = $'completed\tsuccess' ] && [ "$tag_sha" = "$GITHUB_SHA" ]; then exit 0; fi
             if [[ "$result" == completed* && "$result" != $'completed\tsuccess' ]]; then echo 'Browser verification failed; iOS package release blocked.'; exit 1; fi
             sleep 10
@@ -85,4 +102,4 @@ jobs:
         run: |
           gh run download "$GITHUB_RUN_ID" --name SignalPay-iOS-test-build --dir ios-download
           node scripts/ios-release-notes.cjs > ios-download/release-notes.md
-          gh release create ios-v3.4.0 ios-download/SignalPay-demo-ios-3.4.0-unsigned.ipa ios-download/SHA256SUMS-iOS.txt ios-download/SIGNING-REQUIRED.txt ios-download/device-platform.txt ios-download/architectures.txt --target "$GITHUB_SHA" --title 'SignalPay native iOS 3.4.0 — signing required' --notes-file ios-download/release-notes.md --prerelease --latest=false
+          gh release create "ios-v$IOS_VERSION" "ios-download/SignalPay-demo-ios-$IOS_VERSION-unsigned.ipa" ios-download/SHA256SUMS-iOS.txt ios-download/SIGNING-REQUIRED.txt ios-download/device-platform.txt ios-download/architectures.txt ios-download/ipa-resources.json ios-download/simulator-resources.json --target "$GITHUB_SHA" --title "SignalPay iOS $IOS_VERSION — bundled-file launch fix, signing required" --notes-file ios-download/release-notes.md --prerelease --latest=false

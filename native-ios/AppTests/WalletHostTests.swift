@@ -72,5 +72,17 @@ import WebKit
   XCTAssertTrue(WalletController.isLocal(BundleServer.home));XCTAssertFalse(WalletController.isLocal(URL(string:"https://evil.example/signal-app/index.html")));XCTAssertFalse(WalletController.isLocal(URL(string:"http://127.0.0.1:18744/signal-app/index.html")))
   XCTAssertFalse(WalletController.externalAllowed(URL(string:"https://github.com/other/repo")!));XCTAssertEqual(BundleServer.relativeAsset(target:"/signal-app/index.html?v=3.4.0"),"index.html");XCTAssertNil(BundleServer.relativeAsset(target:"/signal-app/%2e%2e/secret"));XCTAssertNil(BundleServer.relativeAsset(target:"/elsewhere/index.html"))
  }
+ func testInstalledBundleManifestAndProductionHTTPRoutes() async throws {
+  defer {closeHosts()};_ = try await host()
+  let root = try XCTUnwrap(BundleServer.resourceRoot)
+  XCTAssertGreaterThanOrEqual(try BundleAssets.validate(root:root),40)
+  for name in ["index.html","app.js","auth-store.js","scanner.js","nearby.js","receipt-chime.wav"] {
+   let (data,response) = try await URLSession.shared.data(from:URL(string:BundleServer.origin+"/signal-app/"+name)!)
+   XCTAssertEqual((response as? HTTPURLResponse)?.statusCode,200)
+   XCTAssertEqual(data,try BundleAssets.data(root:root,relative:name))
+  }
+  let (_,missing) = try await URLSession.shared.data(from:URL(string:BundleServer.origin+"/signal-app/absent-file.js")!)
+  XCTAssertEqual((missing as? HTTPURLResponse)?.statusCode,404)
+ }
  private enum HostError: Error {case timeout}
 }
