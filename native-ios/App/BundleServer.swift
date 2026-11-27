@@ -16,7 +16,9 @@ final class BundleServer {
  func start(completion: @escaping (Error?) -> Void) {
   dispatchPrecondition(condition: .onQueue(.main))
   do { guard let root = Self.resourceRoot else { throw BundleAssets.Failure.missing("www") }; try BundleAssets.validate(root:root) }
-  catch { completion(error); return }
+  // The initial controller is still attaching to its window during viewDidLoad.
+  // Deliver failures on the next main turn so its recovery alert can be presented.
+  catch { DispatchQueue.main.async { completion(error) }; return }
   if ready { completion(nil); return }; callbacks.append(completion); if listener != nil { return }
   do {
    let params = NWParameters.tcp
