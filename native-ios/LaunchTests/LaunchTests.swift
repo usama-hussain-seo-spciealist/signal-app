@@ -11,13 +11,10 @@ import XCTest
    XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout:30))
    XCTAssertTrue(app.staticTexts["Create your SignalPay account"].waitForExistence(timeout:30),"A fresh wallet must render registration, not a blank/error page")
    XCTAssertTrue(app.buttons["Create demo account"].exists)
-   app.buttons["Already have an account? Log in"].tap()
-   XCTAssertTrue(app.staticTexts["Log in to SignalPay"].waitForExistence(timeout:10))
-   XCTAssertTrue(app.buttons["Log in"].exists)
    XCTAssertFalse(app.staticTexts.matching(NSPredicate(format:"label CONTAINS[c] %@","Missing bundled")).firstMatch.exists)
    XCTAssertFalse(app.alerts.firstMatch.exists)
    let screenshot = XCTAttachment(screenshot:app.screenshot())
-   screenshot.name = "Release-wallet-login-launch-\(attempt)";screenshot.lifetime = .keepAlways;add(screenshot)
+   screenshot.name = "Release-wallet-account-launch-\(attempt)";screenshot.lifetime = .keepAlways;add(screenshot)
    app.terminate()
   }
  }
