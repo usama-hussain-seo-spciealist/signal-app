@@ -57,13 +57,18 @@ jobs:
       - name: Clean Release account and launch tests
         run: |
           set -o pipefail
-          xcodebuild -project native-ios/SignalPay.xcodeproj -scheme SignalPay -configuration Release -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -parallel-testing-enabled NO -derivedDataPath "$RUNNER_TEMP/signalpay-compat" -resultBundlePath compatibility/SignalPay.xcresult CODE_SIGNING_ALLOWED=NO ENABLE_TESTABILITY=YES test | tee compatibility/tests.log
+          xcodebuild -project native-ios/SignalPay.xcodeproj -scheme SignalPay -configuration Release -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -parallel-testing-enabled NO -only-testing:SignalPayLaunchTests -derivedDataPath "$RUNNER_TEMP/signalpay-compat" -resultBundlePath compatibility/Launch.xcresult CODE_SIGNING_ALLOWED=NO ENABLE_TESTABILITY=YES test | tee compatibility/launch.log
+          xcrun xcresulttool export attachments --path compatibility/Launch.xcresult --output-path compatibility/screenshots
+          xcodebuild -project native-ios/SignalPay.xcodeproj -scheme SignalPay -configuration Release -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -parallel-testing-enabled NO -only-testing:SignalPayTests -derivedDataPath "$RUNNER_TEMP/signalpay-compat" -resultBundlePath compatibility/Wallet.xcresult CODE_SIGNING_ALLOWED=NO ENABLE_TESTABILITY=YES test | tee compatibility/wallet.log
           python3 scripts/verify-ios-resources.py --app "$RUNNER_TEMP/signalpay-compat/Build/Products/Release-iphonesimulator/SignalPay.app" --source-root . --report compatibility/resources.json
-          xcrun xcresulttool export attachments --path compatibility/SignalPay.xcresult --output-path compatibility/screenshots
       - name: Preserve exact model, runtime and test evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: iPhone-compatibility-${{ matrix.profile }}
-          path: compatibility/
+          retention-days: 7
+          path: |
+            compatibility/*.json
+            compatibility/*.log
+            compatibility/screenshots/
           if-no-files-found: error
