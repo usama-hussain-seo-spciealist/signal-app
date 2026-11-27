@@ -1,0 +1,69 @@
+name: iPhone compatibility verification
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Exact existing SignalPay source commit to test
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  simulator:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: macos-15, profile: compact, runtime: oldest}
+          - {runner: macos-26, profile: standard, runtime: newest}
+          - {runner: macos-26, profile: large, runtime: newest}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.source_ref }}
+      - name: Bundle unchanged wallet
+        run: node scripts/package-ios.cjs
+      - name: Inventory and create representative fresh iPhone
+        env:
+          PROFILE: ${{ matrix.profile }}
+          RUNTIME_ORDER: ${{ matrix.runtime }}
+        run: |
+          mkdir -p compatibility
+          python3 - <<'PY'
+          import json,subprocess,os,re
+          def command(*args):return subprocess.check_output(args,text=True)
+          devices=json.loads(command('xcrun','simctl','list','devices','available','-j'))['devices']
+          types=json.loads(command('xcrun','simctl','list','devicetypes','-j'))['devicetypes']
+          runtimes=[r for r,rows in devices.items() if '.iOS-' in r and any(d.get('isAvailable') and 'iPhone' in d['name'] for d in rows)]
+          assert runtimes,'No iPhone runtime installed'
+          runtimes.sort(key=lambda r:tuple(map(int,re.findall(r'\d+',r.split('iOS-')[-1]))))
+          runtime=runtimes[0 if os.environ['RUNTIME_ORDER']=='oldest' else -1]
+          rows=[d for d in devices[runtime] if d.get('isAvailable') and 'iPhone' in d['name']]
+          profile=os.environ['PROFILE']
+          if profile=='compact':preferred=[d for d in rows if 'SE' in d['name'] or 'mini' in d['name']]
+          elif profile=='large':preferred=[d for d in rows if 'Pro Max' in d['name'] or 'Plus' in d['name']]
+          else:preferred=[d for d in rows if not any(x in d['name'] for x in ['Max','Plus','mini','SE','Air'])]
+          assert preferred,'Requested screen class unavailable; no false compatibility pass'
+          selected=sorted(preferred,key=lambda d:tuple(map(int,re.findall(r'\d+',d['name']))))[-1]
+          kind=next(d['identifier'] for d in types if d['name']==selected['name'])
+          fresh=command('xcrun','simctl','create','SignalPay-Compatibility-'+profile,kind,runtime).strip()
+          report={'sourceCommit':command('git','rev-parse','HEAD').strip(),'profile':profile,'device':selected['name'],'runtime':runtime,'simulatorId':fresh,'xcode':command('xcodebuild','-version').strip(),'availableRuntimes':runtimes,'availableDevices':devices,'physicalDeviceTested':False,'minimumDeploymentTarget':'15.0','scope':'Simulator source compatibility, not real BLE or signed upgrade proof'}
+          with open('compatibility/inventory.json','w') as f:json.dump(report,f,indent=2)
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('SIMULATOR_ID='+fresh+'\n')
+          print(json.dumps({k:v for k,v in report.items() if k!='availableDevices'},indent=2))
+          PY
+      - name: Clean Release account and launch tests
+        run: |
+          set -o pipefail
+          xcodebuild -project native-ios/SignalPay.xcodeproj -scheme SignalPay -configuration Release -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -parallel-testing-enabled NO -derivedDataPath "$RUNNER_TEMP/signalpay-compat" -resultBundlePath compatibility/SignalPay.xcresult CODE_SIGNING_ALLOWED=NO ENABLE_TESTABILITY=YES test | tee compatibility/tests.log
+          python3 scripts/verify-ios-resources.py --app "$RUNNER_TEMP/signalpay-compat/Build/Products/Release-iphonesimulator/SignalPay.app" --source-root . --report compatibility/resources.json
+          xcrun xcresulttool export attachments --path compatibility/SignalPay.xcresult --output-path compatibility/screenshots
+      - name: Preserve exact model, runtime and test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: iPhone-compatibility-${{ matrix.profile }}
+          path: compatibility/
+          if-no-files-found: error
