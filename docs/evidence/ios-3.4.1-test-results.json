@@ -1,0 +1,111 @@
+{
+  "format": "signalpay-ios-launch-acceptance",
+  "version": "3.4.1",
+  "build": 341,
+  "compiledSource": "257ccdfbedf7181d9f978c38dbc556333f869763",
+  "testHarnessFollowup": "bd76078590ab025256305654f548d23df6e3c3c3",
+  "nativeAppSourceUnchangedByTestFollowup": true,
+  "ipa": {
+    "url": "https://github.com/usama-hussain-seo-spciealist/signal-app/releases/download/ios-v3.4.1/SignalPay-demo-ios-3.4.1-unsigned.ipa",
+    "bytes": 441852,
+    "sha256": "ba40026e2e0b1544ff73578c8d30c3508517b441915019223af07068d9357f1f",
+    "publicDownloadHTTP": 200,
+    "architecture": "arm64",
+    "platform": "iPhoneOS",
+    "minimumDeployment": "15.0",
+    "appleDeviceSigningRequired": true,
+    "extractedPackageVerified": true,
+    "assetFiles": 40,
+    "sourceBytesMatched": 40,
+    "localReferences": 31,
+    "allExisting40FilesIdenticalToOldIpa": true
+  },
+  "simulatorConfigurations": [
+    {
+      "device": "iPhone 17 Pro",
+      "ios": "26.2",
+      "xcode": "16.4",
+      "launchTestsPassed": 1,
+      "launches": 2,
+      "walletTestsPassed": 7,
+      "failed": 0,
+      "assets": 40,
+      "run": "https://github.com/usama-hussain-seo-spciealist/signal-app/actions/runs/45997932886"
+    },
+    {
+      "device": "iPhone 17",
+      "ios": "26.5",
+      "xcode": "26.6",
+      "launchTestsPassed": 1,
+      "launches": 2,
+      "walletTestsPassed": 7,
+      "failed": 0,
+      "assets": 40,
+      "run": "https://github.com/usama-hussain-seo-spciealist/signal-app/actions/runs/45997943864"
+    },
+    {
+      "device": "iPhone 17 Pro Max",
+      "ios": "26.5",
+      "xcode": "26.6",
+      "launchTestsPassed": 1,
+      "launches": 2,
+      "walletTestsPassed": 7,
+      "failed": 0,
+      "assets": 40,
+      "run": "https://github.com/usama-hussain-seo-spciealist/signal-app/actions/runs/45997943864"
+    },
+    {
+      "device": "iPhone SE (3rd generation)",
+      "ios": "18.5",
+      "xcode": "16.4",
+      "launchTestsPassed": 1,
+      "launches": 2,
+      "walletTestsPassed": 7,
+      "failed": 0,
+      "assets": 40,
+      "run": "https://github.com/usama-hussain-seo-spciealist/signal-app/actions/runs/46000678835",
+      "testHarnessFollowup": true
+    }
+  ],
+  "otherChecks": {
+    "nodePassed": 54,
+    "browserPassed": 51,
+    "browserSkipped": 5,
+    "swiftPassed": 8,
+    "pythonPackagingPassed": 6,
+    "installTestsPassed": 5,
+    "liveInstallPageAndDownloadButtonVerified": true,
+    "androidVersionUnchanged": "3.4.0"
+  },
+  "initialCompactFailure": {
+    "kind": "XCTest-only dynamic library dependency",
+    "detail": "Missing libswiftWebKit.dylib in hosted test bundle on iOS 18.5; production app launch passed. Fixed by Objective-C callback test bridge; final retest passed.",
+    "countedAsPass": false
+  },
+  "physical": {
+    "deviceReportedByUser": "iPhone 11 Pro",
+    "iosReportedByUser": "27.0.1",
+    "correctedInstall": "PENDING - user confirmed not yet installed/updated",
+    "correctedLaunch": "UNVERIFIED",
+    "signedUpgradeDataRetention": "UNVERIFIED",
+    "iphoneToAndroidBluetooth": "OPEN / UNVERIFIED",
+    "androidToIphoneBluetooth": "OPEN / UNVERIFIED",
+    "noInternetNoCellularPairTest": "OPEN / UNVERIFIED",
+    "milestoneComplete": false
+  },
+  "unverifiedCompatibility": [
+    "iOS 15-17 runtime coverage",
+    "iOS 27.x",
+    "iPhone 11 Pro / iOS 27.0.1",
+    "iPhone 18 / Pro Max",
+    "Physical camera, radio, speaker and signed upgrade behavior"
+  ],
+  "limitations": [
+    "Simulator and browser/in-memory protocol results are not physical Bluetooth proof",
+    "Foreground-only Bluetooth; missing verified receiver ACK remains Pending",
+    "Minimum deployment is not all-model or all-iOS-version certification",
+    "Local demo only; no real funds, bank settlement, trusted issuer or verified phone identity",
+    "No production security certification; no Soundbox hardware work"
+  ],
+  "verifiedDate": "2026-11-27"
+}
