@@ -6,17 +6,19 @@ on:
         description: Exact existing SignalPay source commit to test
         required: true
         type: string
+      profile:
+        description: Run all screen classes or only the compact older-runtime regression
+        required: true
+        default: all
+        type: choice
+        options: [all, compact]
 permissions:
   contents: read
 jobs:
   simulator:
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - {runner: macos-15, profile: compact, runtime: oldest}
-          - {runner: macos-26, profile: standard, runtime: newest}
-          - {runner: macos-26, profile: large, runtime: newest}
+      matrix: ${{ fromJSON(inputs.profile == 'compact' && '{"include":[{"runner":"macos-15","profile":"compact","runtime":"oldest"}]}' || '{"include":[{"runner":"macos-15","profile":"compact","runtime":"oldest"},{"runner":"macos-26","profile":"standard","runtime":"newest"},{"runner":"macos-26","profile":"large","runtime":"newest"}]}') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:

@@ -7,11 +7,12 @@ def q(s):return '"'+s.replace('\\','\\\\').replace('"','\\"')+'"'
 objects=[]
 def obj(key,body):objects.append(f'{ident(key)} = {{ {body} }};');return ident(key)
 swift=['App/AppDelegate.swift','App/WalletController.swift','App/CameraScanner.swift','App/BundleServer.swift','Sources/SignalPayNearby/BundleAssets.swift','Sources/SignalPayNearby/NearbyFrame.swift','Sources/SignalPayNearby/CoreBluetoothTransport.swift']
-tests=['AppTests/WalletHostTests.swift']
+tests=['AppTests/WalletHostTests.swift','AppTests/WebKitTestBridge.m']
 uitests=['LaunchTests/LaunchTests.swift']
 refs=[];builds=[];testbuilds=[];uibuilds=[]
 for name in swift+tests+uitests:
- ref=obj('file:'+name,f'isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {q(name)}; sourceTree = SOURCE_ROOT;');refs.append(ref)
+ kind='sourcecode.c.objc' if name.endswith('.m') else 'sourcecode.swift'
+ ref=obj('file:'+name,f'isa = PBXFileReference; lastKnownFileType = {kind}; path = {q(name)}; sourceTree = SOURCE_ROOT;');refs.append(ref)
  b=obj('build:'+name,f'isa = PBXBuildFile; fileRef = {ref};');(uibuilds if name in uitests else testbuilds if name in tests else builds).append(b)
 resources=[]
 for name,kind in [('www','folder'),('App/Assets.xcassets','folder.assetcatalog')]:
@@ -32,7 +33,7 @@ def configs(kind):
  for mode in ['Debug','Release']:
   settings={'SDKROOT':'iphoneos','IPHONEOS_DEPLOYMENT_TARGET':'15.0','SWIFT_VERSION':'5.0','TARGETED_DEVICE_FAMILY':'1','CODE_SIGN_STYLE':'Automatic','CLANG_ENABLE_MODULES':'YES','SWIFT_OPTIMIZATION_LEVEL':'-Onone' if mode=='Debug' else '-O','DEBUG_INFORMATION_FORMAT':'dwarf','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'DEBUG' if mode=='Debug' else '', 'ENABLE_TESTABILITY':'YES' if mode=='Debug' else 'NO'}
   if kind=='app':settings.update({'PRODUCT_NAME':'SignalPay','PRODUCT_BUNDLE_IDENTIFIER':'com.signalpay.demo.ios','INFOPLIST_FILE':'App/Info.plist','GENERATE_INFOPLIST_FILE':'NO','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks','MARKETING_VERSION':'3.4.1','CURRENT_PROJECT_VERSION':'341'})
-  if kind=='tests':settings.update({'PRODUCT_NAME':'SignalPayTests','PRODUCT_BUNDLE_IDENTIFIER':'com.signalpay.demo.ios.tests','GENERATE_INFOPLIST_FILE':'YES','TEST_HOST':'$(BUILT_PRODUCTS_DIR)/SignalPay.app/SignalPay','BUNDLE_LOADER':'$(TEST_HOST)','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks @loader_path/Frameworks'})
+  if kind=='tests':settings.update({'PRODUCT_NAME':'SignalPayTests','PRODUCT_BUNDLE_IDENTIFIER':'com.signalpay.demo.ios.tests','GENERATE_INFOPLIST_FILE':'YES','TEST_HOST':'$(BUILT_PRODUCTS_DIR)/SignalPay.app/SignalPay','BUNDLE_LOADER':'$(TEST_HOST)','SWIFT_OBJC_BRIDGING_HEADER':'AppTests/WebKitTestBridge.h','CLANG_ENABLE_OBJC_ARC':'YES','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks @loader_path/Frameworks'})
   if kind=='ui':settings.update({'PRODUCT_NAME':'SignalPayLaunchTests','PRODUCT_BUNDLE_IDENTIFIER':'com.signalpay.demo.ios.launchtests','GENERATE_INFOPLIST_FILE':'YES','TEST_TARGET_NAME':'SignalPay','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks @loader_path/Frameworks'})
   result.append(obj(kind+mode,'isa = XCBuildConfiguration; buildSettings = {'+' '.join(f'{k} = {q(v)};' for k,v in settings.items())+'}; name = '+mode+';'))
  return obj(kind+'Configs',f'isa = XCConfigurationList; buildConfigurations = {ids(result)}; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;')

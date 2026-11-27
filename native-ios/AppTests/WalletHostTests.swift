@@ -6,7 +6,11 @@ import WebKit
 @MainActor final class WalletHostTests: XCTestCase {
  private var windows: [UIWindow] = []
  private func js(_ host: WalletController, _ body: String) async throws -> Any? {
-  try await host.webView.callAsyncJavaScript(body,arguments:[:],in:nil,contentWorld:.page)
+  try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Any?,Error>) in
+   SPCallAsyncJavaScript(host.webView,body) { value,error in
+    if let error { continuation.resume(throwing:error) } else { continuation.resume(returning:value) }
+   }
+  }
  }
  private func assertJS(_ host: WalletController, _ body: String) async throws { let value = try await js(host,body);XCTAssertEqual(value as? Bool,true) }
  private func wait(_ host: WalletController, _ expression: String) async throws {
