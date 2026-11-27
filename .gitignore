@@ -14,3 +14,4 @@ native-ios/www/
 native-ios/build/
 ios-dist/
 **/xcuserdata/
+scripts/__pycache__/

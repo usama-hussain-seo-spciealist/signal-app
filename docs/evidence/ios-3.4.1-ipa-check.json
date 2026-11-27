@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "nativeVersion": "3.4.1",
+  "build": "341",
+  "bundleIdentifier": "com.signalpay.demo.ios",
+  "assetsVerified": 40,
+  "sourceFilesMatched": 40,
+  "localReferencesVerified": 31,
+  "physicalDeviceLaunch": "UNVERIFIED",
+  "physicalBluetooth": "OPEN / UNVERIFIED",
+  "ipaBytes": 441852,
+  "ipaSha256": "ba40026e2e0b1544ff73578c8d30c3508517b441915019223af07068d9357f1f",
+  "extractedIpaVerified": true
+}

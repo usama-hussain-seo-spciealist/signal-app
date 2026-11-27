@@ -1,0 +1,18 @@
+{
+  "oldIpaBytes": 420751,
+  "newIpaBytes": 441852,
+  "newIpaSha256": "ba40026e2e0b1544ff73578c8d30c3508517b441915019223af07068d9357f1f",
+  "all40ExistingWalletFilesByteIdentical": true,
+  "onlyAddedWebResource": "bundle-manifest.json",
+  "bundleIdentifierUnchanged": "com.signalpay.demo.ios",
+  "nativeVersion": "3.4.1",
+  "nativeBuild": "341",
+  "minimumOSVersion": "15.0",
+  "architecture": "arm64",
+  "machOPlatform": "iOS device (2)",
+  "machOMinimumOS": "15.0.0",
+  "machOSDK": "18.5.0",
+  "appleDeviceProvisioningPresent": false,
+  "physicalCorrectedLaunch": "UNVERIFIED",
+  "physicalBluetooth": "OPEN / UNVERIFIED"
+}
